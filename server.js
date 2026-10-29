@@ -100,16 +100,16 @@ mongoose.connection.once('open', async () => {
 // ======================= واجهات برمجة التطبيقات (API) ======================= //
 
 // 1. جلب البيانات الأولية (محمية ومحسنة الأداء)
+  // 1. جلب البيانات الأولية مع الحقول المطلوبة للواجهة
 app.get('/api/initial-data', async (req, res) => {
   try {
-    const users = await User.find().select('-password').lean();
+    const users = await User.find().lean();
     const transactions = await Transaction.find().sort({ createdAt: -1 }).limit(100).lean();
     res.json({ success: true, users, transactions });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
 // 2. تسجيل الفاتورة مع منع التكرار الذري
 app.post('/api/transactions', async (req, res) => {
   try {
