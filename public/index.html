@@ -784,24 +784,64 @@
       }
     }
 
-    function handleLogin(e) {
+    // تسجيل الدخول المباشر من قاعدة بيانات MongoDB عبر السيرفر
+    async function handleLogin(e) {
       e.preventDefault();
       const u = document.getElementById('login-username').value.trim().toLowerCase();
       const p = document.getElementById('login-password').value.trim();
       const err = document.getElementById('login-error');
+      const submitBtn = e.target.querySelector('button[type="submit"]');
 
-      const found = DB.users.find(x => x.username.toLowerCase() === u && String(x.password) === p);
-      if (!found) {
-        err.innerText = "اسم المستخدم أو كلمة المرور غير صحيحة";
-        err.style.display = "block";
-        return;
-      }
-
-      currentUser = found;
-      localStorage.setItem('barber_user_id_v9', currentUser.id);
       err.style.display = "none";
-      showAppShell();
-      showToast(`أهلاً بك، ${currentUser.name}`);
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التحقق من السيرفر...';
+
+      try {
+        const res = await fetch(`${API_BASE}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p })
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+          err.innerText = data.message || "اسم المستخدم أو كلمة المرور غير صحيحة";
+          err.style.display = "block";
+          return;
+        }
+
+        currentUser = { ...data.user, id: data.user._id || data.user.id };
+        localStorage.setItem('barber_user_id_v9', currentUser.id);
+
+        const existingIdx = DB.users.findIndex(x => String(x.id) === String(currentUser.id));
+        if (existingIdx > -1) {
+          DB.users[existingIdx] = currentUser;
+        } else {
+          DB.users.push(currentUser);
+        }
+        saveLocalData();
+
+        showAppShell();
+        showToast(`أهلاً بك، ${currentUser.name}`);
+        await syncFromDatabase(false);
+
+      } catch (error) {
+        // Fallback في حال انقطاع الشبكة
+        const found = DB.users.find(x => x.username.toLowerCase() === u && String(x.password) === p);
+        if (found) {
+          currentUser = found;
+          localStorage.setItem('barber_user_id_v9', currentUser.id);
+          showAppShell();
+          showToast(`أهلاً بك (وضع محلي)، ${currentUser.name}`);
+        } else {
+          err.innerText = "تعذر الاتصال بالسيرفر، تأكد من الاتصال بالإنترنت";
+          err.style.display = "block";
+        }
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> تسجيل الدخول';
+      }
     }
 
     function handleLogout() {
@@ -1690,40 +1730,50 @@
         role 
       };
 
-      if (bId) {
-        const u = DB.users.find(x => String(x.id) === String(bId));
-        if (u) { 
-          u.name = name; 
-          u.username = user; 
-          u.password = pass; 
-          u.commission = finalCommissionRatio; 
-          u.role = role; 
-        }
-      } else {
-        DB.users.push({
-          id: 'u_' + Date.now().toString().slice(-4),
-          name, 
-          username: user, 
-          password: pass, 
-          role,
-          commission: finalCommissionRatio,
-          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-          attendance: role === 'barber' ? { status: 'absent', checkIn: null, checkOut: null } : null
+      try {
+        const res = await fetch(`${API_BASE}/users/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
+        const data = await res.json();
+        
+        if (data.success && data.user) {
+          const freshUser = { ...data.user, id: data.user._id || data.user.id };
+          const uIdx = DB.users.findIndex(x => String(x.id) === String(freshUser.id));
+          if (uIdx > -1) {
+            DB.users[uIdx] = freshUser;
+          } else {
+            DB.users.push(freshUser);
+          }
+        }
+      } catch (e) {
+        if (bId) {
+          const u = DB.users.find(x => String(x.id) === String(bId));
+          if (u) { 
+            u.name = name; 
+            u.username = user; 
+            u.password = pass; 
+            u.commission = finalCommissionRatio; 
+            u.role = role; 
+          }
+        } else {
+          DB.users.push({
+            id: 'u_' + Date.now().toString().slice(-4),
+            name, 
+            username: user, 
+            password: pass, 
+            role,
+            commission: finalCommissionRatio,
+            avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            attendance: role === 'barber' ? { status: 'absent', checkIn: null, checkOut: null } : null
+          });
+        }
       }
 
       saveLocalData();
       closeBarberModal();
       renderManagerData();
-
-      try {
-        await fetch(`${API_BASE}/users/save`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      } catch (e) {}
-
       showToast(`تم حفظ الحساب بنجاح`);
     }
 
