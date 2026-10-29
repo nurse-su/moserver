@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>صالون المروج VIP</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --page: #f5f7fb;
+      --surface: #ffffff;
+      --surface-subtle: #f8fafc;
+      --text: #1e293b;
+      --muted: #64748b;
+      --primary: #1e4266;
+      --primary-light: #e6eef5;
+      --gold: #b08b4b;
+      --gold-light: #fef7ec;
+      --border: #e2e8f0;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --warning: #d97706;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; font-family: 'Cairo', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+    input, select, textarea { user-select: auto; }
+    
+    body { 
+      margin: 0; 
+      padding: 0;
+      background: var(--page); 
+      color: var(--text); 
+      min-height: 100vh; 
+      display: flex; 
+      flex-direction: column !important; 
+      width: 100%;
+    }
+
+    #app-shell {
+      display: flex;
+      flex-direction: column !important;
+      width: 100% !important;
+      min-height: 100vh;
+    }
+
+    .view-section { display: none; animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); width: 100%; }
+    .view-section.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .app-header {
+      position: sticky; 
+      top: 0; 
+      z-index: 50; 
+      background: var(--surface);
+      border-bottom: 1px solid var(--border); 
+      padding: calc(var(--safe-top) + 8px) 16px 10px;
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+      width: 100%;
+      flex-shrink: 0;
+    }
+    
+    .brand-title { 
+      font-size: 16px; 
+      font-weight: 800; 
+      color: var(--primary); 
+      display: flex; 
+      align-items: center; 
+      gap: 6px; 
+      white-space: nowrap;
+    }
+    .brand-badge { 
+      background: var(--gold-light); 
+      color: var(--gold); 
+      border: 1px solid rgba(176, 139, 75, 0.3); 
+      padding: 1px 6px; 
+      border-radius: 6px; 
+      font-size: 11px; 
+    }
+
+    .user-pill {
+      display: flex; 
+      align-items: center; 
+      gap: 8px; 
+      background: var(--surface-subtle);
+      border: 1px solid var(--border); 
+      padding: 4px 10px; 
+      border-radius: 20px; 
+      font-size: 12px; 
+      font-weight: 700; 
+      cursor: pointer;
+    }
+
+    .container { 
+      max-width: 600px; 
+      margin: 0 auto; 
+      padding: 14px 14px calc(var(--safe-bottom) + 30px); 
+      width: 100%; 
+      flex: 1;
+    }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 15px rgba(32, 41, 56, 0.03); }
+    .card-title { font-size: 14px; font-weight: 800; margin: 0 0 12px; display: flex; align-items: center; justify-content: space-between; color: var(--primary); }
+
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--muted); }
+    .form-control { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-subtle); font-size: 13px; color: var(--text); outline: none; }
+    .form-control:focus { border-color: var(--primary); background: var(--surface); }
+
+    .btn { width: 100%; border: 0; border-radius: 12px; padding: 12px; font-size: 13px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.1s, opacity 0.15s; }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-gold { background: linear-gradient(135deg, #c4a66c, var(--gold)); color: #fff; }
+    .btn-secondary { background: var(--primary-light); color: var(--primary); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger-light { background: #fee2e2; color: var(--danger); }
+    .btn-success { background: #dcfce7; color: var(--success); }
+
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 6px; text-align: center; }
+    .stat-box span { font-size: 11px; color: var(--muted); font-weight: 700; display: block; }
+    .stat-box strong { font-size: 17px; font-weight: 900; color: var(--primary); margin-top: 4px; display: block; }
+
+    .menu-btn {
+      position: relative; width: 36px; height: 36px; border: 0; border-radius: 10px; cursor: pointer;
+      background: var(--primary-light); color: var(--primary); display: grid; place-items: center; font-size: 16px; flex-shrink: 0;
+    }
+    .menu-btn:active { transform: scale(0.95); }
+    .menu-btn .nav-badge-dot { top: -4px; right: -4px; }
+
+    .drawer-overlay {
+      position: fixed; inset: 0; z-index: 70; background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+    }
+    .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+    .side-drawer {
+      position: fixed; top: 0; bottom: 0; right: 0; z-index: 80; width: 280px; max-width: 82vw;
+      background: var(--surface); display: flex; flex-direction: column;
+      padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);
+      transform: translateX(100%); transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: -10px 0 30px rgba(0,0,0,0.12); border-radius: 20px 0 0 20px;
+    }
+    .side-drawer.open { transform: translateX(0); }
+    .drawer-head {
+      padding: 22px 18px 16px; border-bottom: 1px solid var(--border); background: var(--surface-subtle);
+      border-radius: 20px 0 0 0; display: flex; align-items: center; gap: 12px;
+    }
+    .drawer-head img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); }
+    .drawer-head .d-name { font-size: 14px; font-weight: 800; color: var(--primary); }
+    .drawer-head .d-role { font-size: 11px; color: var(--muted); font-weight: 700; margin-top: 2px; }
+    .drawer-nav { padding: 12px; display: grid; gap: 6px; flex: 1; align-content: start; overflow-y: auto; }
+    .nav-btn {
+      background: none; border: 0; display: flex; flex-direction: row; align-items: center; gap: 12px; width: 100%;
+      color: var(--muted); font-size: 14px; font-weight: 700; padding: 12px 14px; border-radius: 12px; cursor: pointer; position: relative; text-align: right;
+    }
+    .nav-btn i { font-size: 17px; width: 22px; text-align: center; }
+    .nav-btn.active { color: var(--primary); background: var(--primary-light); }
+    .nav-badge-dot {
+      position: absolute; top: 4px; right: 18px; background: var(--danger); color: #fff;
+      font-size: 9px; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-weight: 900;
+    }
+    .drawer-nav .nav-badge-dot { position: static; margin-right: auto; }
+    .drawer-foot { padding: 12px; border-top: 1px solid var(--border); }
+
+    .multi-trigger {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; text-align: right;
+    }
+    .multi-trigger .mt-text { font-weight: 700; }
+    .svc-check-row {
+      display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border);
+      border-radius: 12px; background: var(--surface-subtle); font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .svc-check-row.checked { border-color: var(--gold); background: var(--gold-light); color: var(--primary); }
+    .svc-check-row .box {
+      width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--border); background: var(--surface);
+      display: grid; place-items: center; color: transparent; font-size: 12px; flex-shrink: 0;
+    }
+    .svc-check-row.checked .box { background: var(--gold); border-color: var(--gold); color: #fff; }
+    .sel-price-row {
+      display: grid; grid-template-columns: 1fr 110px; gap: 8px; align-items: center; margin-bottom: 8px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px;
+    }
+    .sel-price-row .sp-name { font-size: 12px; font-weight: 800; color: var(--primary); }
+    .sel-price-row input { padding: 8px 10px; font-weight: 800; color: var(--gold); }
+
+    .cart-pill {
+      display: flex; align-items: center; justify-content: space-between; background: var(--surface-subtle);
+      border: 1px solid var(--border); padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; font-size: 13px;
+    }
+
+    .badge-status { font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; }
+    .badge-present { background: #dcfce7; color: var(--success); }
+    .badge-absent { background: #fee2e2; color: var(--danger); }
+    .badge-pending { background: #fef3c7; color: var(--warning); border: 1px solid #fde68a; }
+
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 60; background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px); display: flex; align-items: flex-end; justify-content: center;
+    }
+    .modal-sheet {
+      background: var(--surface); width: 100%; max-width: 480px; border-radius: 24px 24px 0 0;
+      padding: 20px 16px calc(var(--safe-bottom) + 20px); box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
+      animation: slideUp 0.25s ease-out; max-height: 90vh; overflow-y: auto;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .auth-fullscreen { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 24px 16px; background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); width: 100%; }
+    .toast-msg {
+      position: fixed; top: calc(var(--safe-top) + 16px); left: 16px; right: 16px; max-width: 400px;
+      margin: auto; z-index: 100; background: var(--primary); color: #fff; padding: 12px 16px;
+      border-radius: 14px; font-size: 13px; font-weight: 700; box-shadow: 0 10px 25px rgba(30, 66, 102, 0.25);
+      display: flex; align-items: center; gap: 10px; transform: translateY(-80px); opacity: 0; transition: all 0.25s ease; pointer-events: none;
+    }
+    .toast-msg.show { transform: translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <div id="toast" class="toast-msg">
+    <i class="fa-solid fa-circle-check text-gold"></i>
+    <span id="toast-text">---</span>
+  </div>
+
+  <!-- 1. شاشة الدخول مع التذكير بحساب المدير -->
+  <section id="view-login" class="auth-fullscreen">
+    <div class="card" style="padding: 24px; border-radius: 24px; max-width: 420px; margin: 0 auto; width: 100%;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="width: 56px; height: 56px; margin: 0 auto 12px; background: var(--primary-light); color: var(--primary); border-radius: 16px; display: grid; place-items: center; font-size: 22px;">
+          <i class="fa-solid fa-scissors"></i>
+        </div>
+        <div class="brand-title" style="justify-content: center; font-size: 20px;">
+          صالون المروج <span class="brand-badge">VIP</span>
+        </div>
+        <p style="font-size: 12px; color: var(--muted); margin: 6px 0 0;">إدارة الحضور والدخل والعمليات اليومية</p>
+      </div>
+
+      <div style="margin-bottom: 14px; padding: 10px; background: var(--gold-light); border: 1px solid rgba(176,139,75,0.25); border-radius: 12px; font-size: 11px;">
+        <strong style="color: var(--gold); display: block; margin-bottom: 4px;">حساب المدير الافتراضي:</strong>
+        <div style="display: flex; justify-content: space-between;">
+          <span>اسم الدخول: <strong>admin</strong></span>
+          <span>كلمة المرور: <strong>1234</strong></span>
+        </div>
+      </div>
+
+      <form onsubmit="handleLogin(event)" style="display: grid; gap: 12px;">
+        <div class="form-group" style="margin: 0;">
+          <label>اسم المستخدم</label>
+          <input type="text" id="login-username" required class="form-control" placeholder="اسم الدخول">
+        </div>
+        <div class="form-group" style="margin: 0;">
+          <label>كلمة المرور</label>
+          <input type="password" id="login-password" required class="form-control" placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top: 8px;">
+          <i class="fa-solid fa-right-to-bracket"></i> تسجيل الدخول
+        </button>
+      </form>
+      <div id="login-error" style="color: var(--danger); font-size: 12px; font-weight: 700; text-align: center; margin-top: 10px; display: none;"></div>
+    </div>
+  </section>
+
+  <!-- 2. واجهة التطبيق الرئيسية -->
+  <div id="app-shell" style="display: none;">
+    
+    <header class="app-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="menu-btn" onclick="toggleDrawer(true)" aria-label="القائمة">
+          <i class="fa-solid fa-bars"></i>
+          <span id="menu-pending-dot" class="nav-badge-dot" style="display: none;">0</span>
+        </button>
+        <div class="brand-title">
+          صالون المروج <span class="brand-badge">VIP</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div class="user-pill" onclick="switchTab('profile')">
+          <img id="header-avatar" src="" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+          <span id="header-user-name">---</span>
+        </div>
+        <button onclick="syncFromDatabase(true)" class="btn btn-secondary" style="width: 36px; height: 36px; padding: 0; border-radius: 10px;" title="مزامنة">
+          <i id="sync-icon" class="fa-solid fa-rotate"></i>
+        </button>
+        <button onclick="handleLogout()" class="btn btn-secondary" style="width: 36px; height: 36px; padding: 0; border-radius: 10px; color: var(--danger);" title="خروج">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="container">
+      
+      <!-- TAB 1: الفاتورة وتسجيل الخدمات -->
+      <section id="view-billing" class="view-section active">
+        
+        <div id="barber-attendance-card" class="card" style="background: var(--surface-subtle);">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-size: 12px; font-weight: 800; color: var(--primary);">حالة الدوام اليومي</div>
+              <div id="attendance-status-text" style="font-size: 11px; color: var(--muted); margin-top: 2px;">لم يتم تسجيل الحضور</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button onclick="recordAttendance('in')" id="btn-checkin" class="btn btn-primary" style="padding: 7px 12px; font-size: 12px; width: auto;">حضور</button>
+              <button onclick="recordAttendance('out')" id="btn-checkout" class="btn btn-danger-light" style="padding: 7px 12px; font-size: 12px; width: auto;">انصراف</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">
+            <span><i class="fa-solid fa-cart-plus ml-1" style="color: var(--gold);"></i> تسجيل فاتورة جديدة</span>
+            <span id="cart-counter" class="brand-badge">0 خدمات</span>
+          </h2>
+
+          <div class="form-group">
+            <label>اسم الزبون (اختياري)</label>
+            <input type="text" id="cust-name-input" class="form-control" placeholder="زبون نقدي">
+          </div>
+
+          <div style="background: var(--surface-subtle); padding: 12px; border-radius: 14px; border: 1px solid var(--border); margin-bottom: 12px;">
+            <div class="form-group">
+              <label>اختر الخدمة (يمكن اختيار أكثر من خدمة):</label>
+              <div id="services-trigger" class="form-control multi-trigger" onclick="openServicesModal()">
+                <span id="services-trigger-text" class="mt-text" style="color: var(--muted);">-- اضغط لاختيار الخدمات --</span>
+                <i class="fa-solid fa-chevron-down" style="color: var(--muted); font-size: 12px;"></i>
+              </div>
+            </div>
+
+            <div id="selected-prices-list"></div>
+
+            <button type="button" onclick="addServiceToCurrentBill()" class="btn btn-gold" style="height: 44px;">
+              <i class="fa-solid fa-plus"></i> أضف الفاتورة 
+            </button>
+          </div>
+
+          <div id="bill-items-list" style="margin-bottom: 12px;">
+            <div style="text-align: center; color: var(--muted); font-size: 12px; padding: 16px 0;">
+              لم يتم اختيار خدمات بعد.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>طريقة الدفع:</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+              <button type="button" onclick="setPaymentType('كاش (نقداً)')" id="pay-cash" class="btn btn-primary" style="font-size: 12px; padding: 10px;">كاش</button>
+              <button type="button" onclick="setPaymentType('شبكة / مدى')" id="pay-card" class="btn btn-secondary" style="font-size: 12px; padding: 10px;">شبكة</button>
+              <button type="button" onclick="setPaymentType('دين')" id="pay-debt" class="btn btn-secondary" style="font-size: 12px; padding: 10px;">دين</button>
+            </div>
+          </div>
+
+          <div id="debt-warning-box" style="display: none; padding: 8px 12px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 10px; font-size: 11px; color: var(--warning); margin-bottom: 12px;">
+            <i class="fa-solid fa-circle-exclamation"></i> الدّين معزول ولا يظهر في دخل الصالون المالي حتى يُسدّد أو يعتمده المدير.
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 8px;">
+            <div>
+              <span style="font-size: 11px; color: var(--muted); display: block;">الإجمالي المستحق</span>
+              <strong id="bill-total-price" style="font-size: 20px; color: var(--primary);">0 ر.س</strong>
+            </div>
+            <button onclick="commitTransaction()" class="btn btn-primary" style="width: auto; padding: 12px 24px;">
+              <i class="fa-solid fa-circle-check"></i> تأكيد الفاتورة
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: حساب الحلاق وسجل العمليات -->
+      <section id="view-profile" class="view-section">
+        <div class="stats-row">
+          <div class="stat-box">
+            <span>دخلي اليوم</span>
+            <strong id="my-day-earnings">0</strong>
+            <span style="font-size: 9px;">ريال صافي</span>
+          </div>
+          <div class="stat-box">
+            <span>زبائني اليوم</span>
+            <strong id="my-day-clients">0</strong>
+            <span style="font-size: 9px;">زبون</span>
+          </div>
+          <div class="stat-box">
+            <span>مجمل دخلي</span>
+            <strong id="my-total-earnings">0</strong>
+            <span style="font-size: 9px;">ريال</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <h2 class="card-title" style="margin: 0;"><i class="fa-solid fa-receipt text-gold ml-1"></i> سجل العمليات</h2>
+            <div style="display: flex; background: var(--surface-subtle); padding: 2px; border-radius: 8px; border: 1px solid var(--border);">
+              <button onclick="filterOperations('today')" id="flt-today" class="btn btn-primary" style="padding: 4px 10px; font-size: 10px; width: auto;">اليوم</button>
+              <button onclick="filterOperations('all')" id="flt-all" class="btn btn-secondary" style="padding: 4px 10px; font-size: 10px; width: auto;">الكل</button>
+            </div>
+          </div>
+          <div id="barber-tx-history" style="display: grid; gap: 8px; max-height: 280px; overflow-y: auto;"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title"><i class="fa-solid fa-gear text-muted"></i> إعدادات الحساب والصورة</h2>
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <img id="profile-avatar-preview" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold);">
+            <div style="flex: 1;">
+              <label style="font-size: 11px; font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px;">تغيير الصورة الشخصية</label>
+              <input type="file" accept="image/*" onchange="handleAvatarUpload(event)" style="font-size: 11px;">
+            </div>
+          </div>
+
+          <form onsubmit="handleProfileUpdate(event)" style="display: grid; gap: 10px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div class="form-group" style="margin: 0;">
+                <label>اسم المستخدم</label>
+                <input type="text" id="settings-username" required class="form-control">
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label>كلمة المرور الجديدة</label>
+                <input type="password" id="settings-password" placeholder="اتركه فارغاً للإبقاء" class="form-control">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-secondary">
+              <i class="fa-solid fa-check"></i> حفظ التعديلات
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- TAB 3: لوحة المدير -->
+      <section id="view-manager" class="view-section">
+        <div class="stats-row" style="grid-template-columns: 1fr 1fr;">
+          <div class="stat-box">
+            <span>دخل الصالون الفعلي (بدون الدين)</span>
+            <strong id="mgr-total-sales" style="color: var(--primary);">0</strong>
+            <span style="font-size: 9px;">ريال محصل</span>
+          </div>
+          <div class="stat-box">
+            <span>مستحقات العمال الصافية</span>
+            <strong id="mgr-barbers-share" style="color: var(--success);">0</strong>
+            <span style="font-size: 9px;">ريال</span>
+          </div>
+        </div>
+
+        <div class="card" style="background: #fffbeb; border: 1px solid #fef3c7;">
+          <h2 class="card-title" style="color: var(--warning); margin-bottom: 8px;">
+            <span><i class="fa-solid fa-hand-holding-dollar ml-1"></i> إجمالي الديون المعزولة</span>
+            <span id="mgr-pending-count" class="brand-badge" style="background:#fde68a; color:#92400e;">0 طلب</span>
+          </h2>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: center;">
+            <div style="background: #fff; padding: 8px; border-radius: 10px; border: 1px solid #fef3c7;">
+              <span style="font-size: 11px; color: var(--muted); font-weight: 700;">ديون اليوم</span>
+              <strong id="mgr-debt-today" style="display: block; font-size: 16px; color: var(--warning); margin-top: 2px;">0 ر.س</strong>
+            </div>
+            <div style="background: #fff; padding: 8px; border-radius: 10px; border: 1px solid #fef3c7;">
+              <span style="font-size: 11px; color: var(--muted); font-weight: 700;">ديون هذا الشهر</span>
+              <strong id="mgr-debt-month" style="display: block; font-size: 16px; color: var(--danger); margin-top: 2px;">0 ر.س</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">
+            <span><i class="fa-solid fa-bell text-warning ml-1"></i> طلبات الحلاقين المعلقة للتعديل والدين</span>
+          </h2>
+          <div id="mgr-pending-requests" style="display: grid; gap: 8px;"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">
+            <span><i class="fa-solid fa-clock-rotate-left text-primary ml-1"></i> أوقات وصول وانصراف الحلاقين اليوم</span>
+          </h2>
+          <div id="mgr-attendance-list" style="display: grid; gap: 8px;"></div>
+        </div>
+
+        <!-- قائمة الحلاقين: تدعم التعديل والحذف لأي حساب -->
+        <div class="card">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <div>
+              <h2 class="card-title" style="margin: 0;">إدارة فريق العمل والحلاقين</h2>
+              <small style="color: var(--muted); font-size: 10px;">اضغط على اسم الحلاق لعرض تصفية الشهر، أو استخدم الأزرار للتعديل والحذف</small>
+            </div>
+            <button onclick="openBarberModal()" class="btn btn-gold" style="width: auto; padding: 6px 12px; font-size: 11px;">
+              + إضافة حلاق
+            </button>
+          </div>
+          <div id="mgr-barbers-clickable-list" style="display: grid; gap: 8px;"></div>
+        </div>
+
+        <div class="card" style="border: 1px solid rgba(220, 38, 38, 0.3); background: #fff5f5;">
+          <h2 class="card-title" style="color: var(--danger);">
+            <span><i class="fa-solid fa-trash-can ml-1"></i> تصفية نهاية الشهر الكلية للصالون</span>
+          </h2>
+          <p style="font-size: 11px; color: var(--muted); margin: 0 0 10px;">
+            تقوم هذه العملية بمسح جميع فواتير الشهر لكل الصالون لبدء دورة جديدة.
+          </p>
+          <button onclick="flushMonthlyData()" class="btn btn-danger">
+            <i class="fa-solid fa-triangle-exclamation"></i> تصفية جميع فواتير الشهر وتصفير النظام
+          </button>
+        </div>
+
+      </section>
+
+    </main>
+
+    <div id="drawer-overlay" class="drawer-overlay" onclick="toggleDrawer(false)"></div>
+    <aside id="side-drawer" class="side-drawer" aria-hidden="true">
+      <div class="drawer-head">
+        <img id="drawer-avatar" src="" alt="">
+        <div>
+          <div id="drawer-user-name" class="d-name">---</div>
+          <div id="drawer-user-role" class="d-role">---</div>
+        </div>
+      </div>
+
+      <nav class="drawer-nav">
+        <button onclick="switchTab('billing')" id="nav-billing" class="nav-btn active">
+          <i class="fa-solid fa-scissors"></i>
+          <span>الفاتورة</span>
+        </button>
+
+        <button onclick="switchTab('profile')" id="nav-profile" class="nav-btn">
+          <i class="fa-solid fa-chart-simple"></i>
+          <span id="nav-profile-label">أرقامي</span>
+        </button>
+
+        <button onclick="switchTab('manager')" id="nav-manager" class="nav-btn" style="display: none;">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>الإدارة</span>
+          <span id="nav-pending-dot" class="nav-badge-dot" style="display: none;">0</span>
+        </button>
+      </nav>
+
+      <div class="drawer-foot">
+        <button onclick="toggleDrawer(false); handleLogout()" class="btn btn-danger-light">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> تسجيل الخروج
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Modal: اختيار خدمات متعددة -->
+  <div id="modal-services" class="modal-overlay" style="display: none;" onclick="if(event.target===this) closeServicesModal()">
+    <div class="modal-sheet">
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: var(--primary);">اختر الخدمات</h3>
+        <span id="services-modal-count" class="brand-badge">0 مختارة</span>
+      </div>
+      <div id="services-checklist" style="display: grid; gap: 8px; max-height: 50vh; overflow-y: auto;"></div>
+      <div style="display: flex; gap: 8px; margin-top: 14px;">
+        <button type="button" onclick="confirmServicesSelection()" class="btn btn-primary" style="flex: 2;">
+          <i class="fa-solid fa-check"></i> تم
+        </button>
+        <button type="button" onclick="clearServicesSelection()" class="btn btn-secondary" style="flex: 1;">مسح</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 1: نافذة التصفية الشهرية المنفردة للحلاق عند المدير -->
+  <div id="modal-barber-detail" class="modal-overlay" style="display: none;">
+    <div class="modal-sheet">
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 12px;">
+        <div>
+          <h3 id="detail-barber-name" style="margin: 0; font-size: 15px; font-weight: 800; color: var(--primary);">---</h3>
+          <small id="detail-barber-month" style="color: var(--muted); font-weight: 700;"></small>
+        </div>
+        <button onclick="closeBarberDetailModal()" style="background: none; border: 0; font-size: 16px; cursor: pointer;">✕</button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;">
+        <div class="stat-box" style="background: var(--primary-light);">
+          <span>دخل الحلاق الصافي</span>
+          <strong id="detail-barber-net" style="color: var(--primary); font-size: 16px;">0</strong>
+          <span style="font-size: 9px;">ريال</span>
+        </div>
+        <div class="stat-box" style="background: var(--gold-light);">
+          <span>إجمالي مبيعات الشهر</span>
+          <strong id="detail-barber-total-month" style="color: var(--gold); font-size: 16px;">0</strong>
+          <span style="font-size: 9px;">ريال</span>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 12px;">
+        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 8px 4px; text-align: center;">
+          <span style="font-size: 10px; color: var(--muted); font-weight: 700; display: block;">الكاش (نقداً)</span>
+          <strong id="detail-barber-cash" style="font-size: 13px; color: var(--primary);">0</strong>
+          <small style="font-size: 8px; color: var(--muted); display: block;">ر.س</small>
+        </div>
+        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 8px 4px; text-align: center;">
+          <span style="font-size: 10px; color: var(--muted); font-weight: 700; display: block;">الشبكة (مدى)</span>
+          <strong id="detail-barber-card" style="font-size: 13px; color: var(--success);">0</strong>
+          <small style="font-size: 8px; color: var(--muted); display: block;">ر.س</small>
+        </div>
+        <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 12px; padding: 8px 4px; text-align: center;">
+          <span style="font-size: 10px; color: var(--warning); font-weight: 700; display: block;">الدين المعزول</span>
+          <strong id="detail-barber-debt" style="font-size: 13px; color: var(--danger);">0</strong>
+          <small style="font-size: 8px; color: var(--muted); display: block;">ر.س</small>
+        </div>
+      </div>
+
+      <div style="font-size: 12px; font-weight: 700; color: var(--muted); margin: 8px 0 4px;">كل فواتير الحلاق في الشهر:</div>
+      <div id="detail-barber-txs" style="display: grid; gap: 6px; max-height: 200px; overflow-y: auto;"></div>
+
+      <div style="margin-top: 12px; display: grid; gap: 8px;">
+        <button id="btn-flush-single-barber" class="btn btn-danger-light" style="font-size: 11px; padding: 8px;">
+          <i class="fa-solid fa-trash-can"></i> مسح وتصفية بيانات الشهر السابق لهذا الحلاق
+        </button>
+        <button onclick="closeBarberDetailModal()" class="btn btn-secondary">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: تعديل الفاتورة -->
+  <div id="modal-edit-tx" class="modal-overlay" style="display: none;">
+    <div class="modal-sheet">
+      <h3 style="font-size: 15px; font-weight: 800; color: var(--primary); margin: 0 0 12px;">
+        تعديل الفاتورة (<span id="edit-tx-mode-label">---</span>)
+      </h3>
+      <input type="hidden" id="edit-tx-id">
+      <input type="hidden" id="edit-tx-item-idx">
+
+      <div class="form-group">
+        <label>الخدمة:</label>
+        <input type="text" id="edit-tx-service-name" readonly class="form-control" style="font-weight: 700;">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div class="form-group">
+          <label>السعر المسجل:</label>
+          <input type="text" id="edit-tx-old-price" readonly class="form-control">
+        </div>
+        <div class="form-group">
+          <label>السعر الجديد (ريال):</label>
+          <input type="number" id="edit-tx-new-price" min="0" step="1" class="form-control" style="font-weight: 800; color: var(--gold);">
+        </div>
+      </div>
+
+      <div class="form-group" id="edit-tx-reason-group">
+        <label>سبب التعديل (يُعرض للمدير للموافقة):</label>
+        <textarea id="edit-tx-reason" rows="2" class="form-control" placeholder="اكتب السبب..."></textarea>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 14px;">
+        <button onclick="submitTxEdit()" class="btn btn-primary" style="flex: 2;">حفظ التعديل</button>
+        <button onclick="closeEditTxModal()" class="btn btn-secondary" style="flex: 1;">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: إضافة وتعديل حلاق مع تحديد النسبة بحرية من المدير -->
+  <div id="modal-barber-edit" class="modal-overlay" style="display: none;">
+    <div class="modal-sheet">
+      <h3 id="modal-barber-title" style="font-size: 15px; font-weight: 800; color: var(--primary); margin: 0 0 12px;">إضافة حلاق جديد</h3>
+      <input type="hidden" id="barber-edit-id">
+
+      <div class="form-group">
+        <label>الاسم الكامل:</label>
+        <input type="text" id="barber-edit-name" required class="form-control" placeholder="يوسف الشمري">
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div class="form-group">
+          <label>اسم الدخول:</label>
+          <input type="text" id="barber-edit-user" required class="form-control">
+        </div>
+        <div class="form-group">
+          <label>كلمة المرور:</label>
+          <input type="text" id="barber-edit-pass" placeholder="1234" class="form-control">
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div class="form-group">
+          <label>نسبة الحلاق المخصصة (%):</label>
+          <input type="number" id="barber-edit-comm" min="0" max="100" step="1" placeholder="مثال: 45" class="form-control" style="font-weight: 800; color: var(--gold);">
+        </div>
+        <div class="form-group">
+          <label>الصلاحية:</label>
+          <select id="barber-edit-role" class="form-control">
+            <option value="barber">حلاق عادي</option>
+            <option value="manager">مدير صالون</option>
+          </select>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 14px;">
+        <button onclick="saveBarberForm()" class="btn btn-primary" style="flex: 2;">حفظ بيانات الحلاق</button>
+        <button onclick="closeBarberModal()" class="btn btn-secondary" style="flex: 1;">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "/api";
+
+    const AVAILABLE_SERVICES = [
+      { id: 'srv_1', name: 'شعر مكينة' },
+      { id: 'srv_2', name: 'قصات شعر مدرج' },
+      { id: 'srv_3', name: 'دقن مدرج او عوارض' },
+      { id: 'srv_4', name: 'دقن موس' },
+      { id: 'srv_5', name: 'دقن خيط' },
+      { id: 'srv_6', name: 'غسيل شعر' },
+      { id: 'srv_7', name: 'صبغة كاملة شعر' },
+      { id: 'srv_8', name: 'صبغة كاملة دقن' },
+      { id: 'srv_9', name: 'بخار' },
+      { id: 'srv_10', name: 'صنفرة' },
+      { id: 'srv_11', name: 'لزقة انف' },
+      { id: 'srv_12', name: 'استشوار' },
+      { id: 'srv_13', name: 'تنظيف بشره مع ليزر مع شفط دهون' }
+    ];
+
+    const DEFAULT_USERS = [
+      { id: 'u_admin', name: 'أبو فهد (المدير)', username: 'admin', password: '1234', role: 'manager', commission: 1.0, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', attendance: null },
+      { id: 'u_mohamed', name: 'محمد الحلاق', username: 'mohamed', password: '1234', role: 'barber', commission: 0.50, avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', attendance: { status: 'present', checkIn: '09:00 ص', checkOut: null } },
+      { id: 'u_ahmed', name: 'أحمد التونسي', username: 'ahmed', password: '1234', role: 'barber', commission: 0.50, avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', attendance: { status: 'absent', checkIn: null, checkOut: null } }
+    ];
+
+    let DB = {
+      services: AVAILABLE_SERVICES,
+      users: JSON.parse(JSON.stringify(DEFAULT_USERS)),
+      transactions: [],
+      clientCounters: {}
+    };
+
+    let currentUser = null;
+    let currentCart = [];
+    let selectedPayment = 'كاش (نقداً)';
+    let currentOpFilter = 'today';
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      initLocalData();
+      checkSavedSession();
+      await syncFromDatabase(false);
+    });
+
+    function initLocalData() {
+      const stored = localStorage.getItem('barber_db_data_v9');
+      if (stored) {
+        try { DB = JSON.parse(stored); } catch(e) {}
+      }
+      saveLocalData();
+    }
+
+    function saveLocalData() {
+      localStorage.setItem('barber_db_data_v9', JSON.stringify(DB));
+      updatePendingBadges();
+    }
+
+    async function syncFromDatabase(showToastMsg = false) {
+      const icon = document.getElementById('sync-icon');
+      if (icon) icon.classList.add('fa-spin');
+
+      try {
+        const res = await fetch(`${API_BASE}/initial-data`);
+        const data = await res.json();
+        if (data.success) {
+          if (data.users?.length) DB.users = data.users.map(u => ({ ...u, id: u._id || u.id }));
+          if (data.transactions) DB.transactions = data.transactions.map(t => ({ ...t, id: t.txId || t._id || t.id }));
+          saveLocalData();
+          populateServicesDropdown();
+          if (currentUser) {
+            currentUser = DB.users.find(u => String(u.id) === String(currentUser.id)) || currentUser;
+            updateTopBarInfo();
+            renderProfileData();
+          }
+          if (showToastMsg) showToast("تمت المزامنة بنجاح مع MongoDB Atlas");
+        }
+      } catch (e) {
+        if (showToastMsg) showToast("العمل في الوضع المحلي (أوفلاين)");
+      } finally {
+        if (icon) icon.classList.remove('fa-spin');
+      }
+    }
+
+    function checkSavedSession() {
+      const saved = localStorage.getItem('barber_user_id_v9');
+      if (saved) {
+        const u = DB.users.find(x => String(x.id) === String(saved));
+        if (u) {
+          currentUser = u;
+          showAppShell();
+        }
+      }
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById('login-username').value.trim().toLowerCase();
+      const p = document.getElementById('login-password').value.trim();
+      const err = document.getElementById('login-error');
+
+      const found = DB.users.find(x => x.username.toLowerCase() === u && String(x.password) === p);
+      if (!found) {
+        err.innerText = "اسم المستخدم أو كلمة المرور غير صحيحة";
+        err.style.display = "block";
+        return;
+      }
+
+      currentUser = found;
+      localStorage.setItem('barber_user_id_v9', currentUser.id);
+      err.style.display = "none";
+      showAppShell();
+      showToast(`أهلاً بك، ${currentUser.name}`);
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('barber_user_id_v9');
+      currentUser = null;
+      document.getElementById('app-shell').style.display = 'none';
+      document.getElementById('view-login').style.display = 'flex';
+      showToast("تم تسجيل الخروج");
+    }
+
+    function showAppShell() {
+      document.getElementById('view-login').style.display = 'none';
+      document.getElementById('app-shell').style.display = 'flex';
+      updateTopBarInfo();
+
+      const navMgr = document.getElementById('nav-manager');
+      const attendanceCard = document.getElementById('barber-attendance-card');
+
+      if (currentUser.role === 'manager') {
+        navMgr.style.display = 'flex';
+        attendanceCard.style.display = 'none';
+      } else {
+        navMgr.style.display = 'none';
+        attendanceCard.style.display = 'block';
+      }
+
+      setPaymentType('كاش (نقداً)');
+      populateServicesDropdown();
+      setDefaultClientName();
+      switchTab('billing');
+    }
+
+    function updateTopBarInfo() {
+      if (!currentUser) return;
+      document.getElementById('header-user-name').innerText = currentUser.name.split(' ')[0];
+      document.getElementById('header-avatar').src = currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+      document.getElementById('drawer-avatar').src = currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+      document.getElementById('drawer-user-name').innerText = currentUser.name;
+      document.getElementById('drawer-user-role').innerText = currentUser.role === 'manager' ? 'مدير الصالون' : `حلاق (${Math.round((currentUser.commission || 0.5) * 100)}%)`;
+      document.getElementById('profile-avatar-preview').src = currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+      document.getElementById('settings-username').value = currentUser.username;
+      document.getElementById('settings-password').value = '';
+      updateAttendanceBadge();
+    }
+
+    function switchTab(tabId) {
+      ['billing', 'profile', 'manager'].forEach(t => {
+        const el = document.getElementById(`view-${t}`);
+        const btn = document.getElementById(`nav-${t}`);
+        if (el) el.classList.remove('active');
+        if (btn) btn.classList.remove('active');
+      });
+
+      document.getElementById(`view-${tabId}`).classList.add('active');
+      const activeNav = document.getElementById(`nav-${tabId}`);
+      if (activeNav) activeNav.classList.add('active');
+
+      if (tabId === 'billing') setDefaultClientName();
+      if (tabId === 'profile') renderProfileData();
+      if (tabId === 'manager') renderManagerData();
+      toggleDrawer(false);
+      window.scrollTo(0, 0);
+    }
+
+    function setDefaultClientName() {
+      if (!currentUser) return;
+      const count = (DB.clientCounters[currentUser.id] || 0) + 1;
+      document.getElementById('cust-name-input').value = `زبون ${currentUser.name.split(' ')[0]} ${count}`;
+    }
+
+    function toggleDrawer(open) {
+      document.getElementById('side-drawer').classList.toggle('open', open);
+      document.getElementById('drawer-overlay').classList.toggle('open', open);
+      document.getElementById('side-drawer').setAttribute('aria-hidden', open ? 'false' : 'true');
+    }
+
+    let selectedServiceIds = [];
+    let servicePrices = {};
+    let draftServiceIds = [];
+
+    function populateServicesDropdown() {
+      selectedServiceIds = [];
+      servicePrices = {};
+      renderSelectedPrices();
+    }
+
+    function openServicesModal() {
+      draftServiceIds = [...selectedServiceIds];
+      renderServicesChecklist();
+      document.getElementById('modal-services').style.display = 'flex';
+    }
+
+    function closeServicesModal() {
+      document.getElementById('modal-services').style.display = 'none';
+    }
+
+    function renderServicesChecklist() {
+      const list = document.getElementById('services-checklist');
+      list.innerHTML = '';
+      DB.services.forEach(srv => {
+        const checked = draftServiceIds.includes(srv.id);
+        const row = document.createElement('div');
+        row.className = 'svc-check-row' + (checked ? ' checked' : '');
+        row.innerHTML = `<span class="box"><i class="fa-solid fa-check"></i></span><span>${srv.name}</span>`;
+        row.onclick = () => {
+          draftServiceIds = draftServiceIds.includes(srv.id)
+            ? draftServiceIds.filter(id => id !== srv.id)
+            : [...draftServiceIds, srv.id];
+          renderServicesChecklist();
+        };
+        list.appendChild(row);
+      });
+      document.getElementById('services-modal-count').innerText = `${draftServiceIds.length} مختارة`;
+    }
+
+    function clearServicesSelection() {
+      draftServiceIds = [];
+      renderServicesChecklist();
+    }
+
+    function confirmServicesSelection() {
+      selectedServiceIds = DB.services.map(s => s.id).filter(id => draftServiceIds.includes(id));
+      closeServicesModal();
+      renderSelectedPrices();
+    }
+
+    function renderSelectedPrices() {
+      const box = document.getElementById('selected-prices-list');
+      const txt = document.getElementById('services-trigger-text');
+      box.innerHTML = '';
+
+      if (selectedServiceIds.length === 0) {
+        txt.innerText = '-- اضغط لاختيار الخدمات --';
+        txt.style.color = 'var(--muted)';
+        return;
+      }
+
+      txt.innerText = `${selectedServiceIds.length} خدمات مختارة`;
+      txt.style.color = 'var(--primary)';
+
+      selectedServiceIds.forEach(id => {
+        const srv = DB.services.find(s => s.id === id);
+        if (!srv) return;
+        const row = document.createElement('div');
+        row.className = 'sel-price-row';
+        row.innerHTML = `
+          <span class="sp-name">${srv.name}</span>
+          <input type="number" min="0" step="1" inputmode="decimal" class="form-control" placeholder="السعر"
+                 value="${servicePrices[id] ?? ''}" oninput="servicePrices['${id}'] = this.value">
+        `;
+        box.appendChild(row);
+      });
+    }
+
+    function addServiceToCurrentBill() {
+      if (selectedServiceIds.length === 0) return showToast("اختر خدمة واحدة على الأقل");
+
+      const missing = selectedServiceIds.filter(id => {
+        const v = parseFloat(servicePrices[id]);
+        return isNaN(v) || v < 0;
+      });
+      if (missing.length > 0) {
+        const names = missing.map(id => DB.services.find(s => s.id === id).name).join('، ');
+        return showToast(`أدخل سعر: ${names}`);
+      }
+
+      selectedServiceIds.forEach(id => {
+        const srv = DB.services.find(s => s.id === id);
+        currentCart.push({
+          id: srv.id,
+          name: srv.name,
+          price: parseFloat(servicePrices[id]),
+          tempId: 'item_' + Date.now() + Math.random().toString(36).substr(2, 4)
+        });
+      });
+
+      const n = selectedServiceIds.length;
+      selectedServiceIds = [];
+      servicePrices = {};
+      renderSelectedPrices();
+      renderBillItems();
+      showToast(n === 1 ? 'أُضيفت الخدمة للسلة' : `أُضيفت ${n} خدمات للسلة`);
+    }
+
+    function removeBillItem(tempId) {
+      currentCart = currentCart.filter(item => item.tempId !== tempId);
+      renderBillItems();
+    }
+
+    function renderBillItems() {
+      const container = document.getElementById('bill-items-list');
+      const counter = document.getElementById('cart-counter');
+      const totalEl = document.getElementById('bill-total-price');
+
+      counter.innerText = `${currentCart.length} خدمات`;
+
+      if (currentCart.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 12px; padding: 16px 0;">لم يتم اختيار خدمات بعد.</div>`;
+        totalEl.innerText = "0 ر.س";
+        return;
+      }
+
+      let sum = 0;
+      container.innerHTML = '';
+      currentCart.forEach(item => {
+        sum += item.price;
+        const row = document.createElement('div');
+        row.className = 'cart-pill';
+        row.innerHTML = `
+          <span style="font-weight: 700;">${item.name}</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <strong style="color: var(--gold); font-size: 14px;">${item.price} ر.س</strong>
+            <i class="fa-solid fa-trash-can text-muted" onclick="removeBillItem('${item.tempId}')" style="cursor: pointer; font-size: 13px;"></i>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      totalEl.innerText = `${sum} ر.س`;
+    }
+
+    function setPaymentType(type) {
+      selectedPayment = type;
+      ['pay-cash', 'pay-card', 'pay-debt'].forEach(id => {
+        const btn = document.getElementById(id);
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+      });
+
+      const map = { 'كاش (نقداً)': 'pay-cash', 'شبكة / مدى': 'pay-card', 'دين': 'pay-debt' };
+      const activeBtn = document.getElementById(map[type]);
+      if (activeBtn) {
+        activeBtn.classList.remove('btn-secondary');
+        activeBtn.classList.add('btn-primary');
+      }
+
+      document.getElementById('debt-warning-box').style.display = (type === 'دين') ? 'block' : 'none';
+    }
+
+    async function commitTransaction() {
+      if (currentCart.length === 0) return showToast("أضف خدمة واحدة على الأقل للفاتورة");
+
+      if (currentUser.role === 'barber') {
+        const isPresent = currentUser.attendance && currentUser.attendance.status === 'present';
+        if (!isPresent) {
+          showToast("يرجى تسجيل الحضور أولاً قبل تسجيل الفواتير");
+          return;
+        }
+      }
+
+      const count = (DB.clientCounters[currentUser.id] || 0) + 1;
+      const custName = document.getElementById('cust-name-input').value.trim() || `زبون ${currentUser.name.split(' ')[0]} ${count}`;
+
+      let total = 0;
+      const items = currentCart.map(c => {
+        total += c.price;
+        return {
+          serviceId: c.id,
+          name: c.name,
+          originalPrice: c.price,
+          finalPrice: c.price,
+          adjustmentStatus: 'none',
+          requestedPrice: null,
+          adjustmentReason: ''
+        };
+      });
+
+      const comm = (typeof currentUser.commission === 'number') ? currentUser.commission : 0.5;
+      const barberShare = Math.round(total * comm);
+      const isDebt = selectedPayment === 'دين';
+
+      const uniqueTxId = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+      const tx = {
+        txId: uniqueTxId,
+        id: uniqueTxId,
+        barberId: currentUser.id,
+        barberName: currentUser.name,
+        clientName: custName,
+        paymentMethod: selectedPayment,
+        isDebt: isDebt,
+        debtStatus: isDebt ? 'pending' : 'approved',
+        totalAmount: total,
+        barberShare: barberShare,
+        salonShare: total - barberShare,
+        hasPendingAdjustments: false,
+        items: items,
+        date: new Date().toISOString().slice(0, 10),
+        time: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+      };
+
+      DB.transactions.unshift(tx);
+      DB.clientCounters[currentUser.id] = count;
+      saveLocalData();
+
+      try {
+        await fetch(`${API_BASE}/transactions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tx)
+        });
+      } catch (e) {}
+
+      currentCart = [];
+      setDefaultClientName();
+      renderBillItems();
+      showToast(isDebt ? "سُجلت كـ (دين معزول) بانتظار اعتماد المدير" : `تم تسجيل فاتورة (${custName}) بنجاح`);
+    }
+
+    async function recordAttendance(type) {
+      if (!currentUser || currentUser.role !== 'barber') return;
+      const time = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+
+      if (!currentUser.attendance) currentUser.attendance = {};
+      currentUser.attendance.status = (type === 'in') ? 'present' : 'absent';
+      if (type === 'in') currentUser.attendance.checkIn = time;
+      if (type === 'out') currentUser.attendance.checkOut = time;
+
+      const idx = DB.users.findIndex(u => String(u.id) === String(currentUser.id));
+      if (idx > -1) DB.users[idx] = currentUser;
+      saveLocalData();
+      updateAttendanceBadge();
+
+      try {
+        await fetch(`${API_BASE}/attendance`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id, status: currentUser.attendance.status, time })
+        });
+      } catch (e) {}
+
+      showToast(type === 'in' ? `تم تسجيل حضورك الساعة: ${time}` : `تم تسجيل انصرافك الساعة: ${time}`);
+    }
+
+    function updateAttendanceBadge() {
+      const el = document.getElementById('attendance-status-text');
+      const bIn = document.getElementById('btn-checkin');
+      const bOut = document.getElementById('btn-checkout');
+
+      const isPres = currentUser?.attendance && currentUser.attendance.status === 'present';
+      if (isPres) {
+        el.innerHTML = `<span class="badge-status badge-present">حاضر (وصل: ${currentUser.attendance.checkIn})</span>`;
+        bIn.disabled = true; bIn.style.opacity = '0.5';
+        bOut.disabled = false; bOut.style.opacity = '1';
+      } else {
+        const outTime = currentUser?.attendance?.checkOut ? ` (خرج: ${currentUser.attendance.checkOut})` : '';
+        el.innerHTML = `<span class="badge-status badge-absent">منصرف / غائب ${outTime}</span>`;
+        bIn.disabled = false; bIn.style.opacity = '1';
+        bOut.disabled = true; bOut.style.opacity = '0.5';
+      }
+    }
+
+    function filterOperations(flt) {
+      currentOpFilter = flt;
+      document.getElementById('flt-today').className = (flt === 'today') ? 'btn btn-primary' : 'btn btn-secondary';
+      document.getElementById('flt-all').className = (flt === 'all') ? 'btn btn-primary' : 'btn btn-secondary';
+      renderProfileData();
+    }
+
+    function renderProfileData() {
+      const myTx = DB.transactions.filter(t => String(t.barberId) === String(currentUser.id));
+      const today = new Date().toISOString().slice(0, 10);
+      const myToday = myTx.filter(t => t.date === today);
+
+      let dayEarnings = 0;
+      let totalEarnings = 0;
+
+      myToday.forEach(t => { if (!t.isDebt && t.debtStatus !== 'rejected') dayEarnings += (t.barberShare || 0); });
+      myTx.forEach(t => { if (!t.isDebt && t.debtStatus !== 'rejected') totalEarnings += (t.barberShare || 0); });
+
+      document.getElementById('my-day-earnings').innerText = dayEarnings;
+      document.getElementById('my-day-clients').innerText = myToday.length;
+      document.getElementById('my-total-earnings').innerText = totalEarnings;
+
+      let list = (currentOpFilter === 'today') ? myToday : myTx;
+      const container = document.getElementById('barber-tx-history');
+
+      if (list.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 12px; padding: 16px;">لا توجد عمليات مسجلة ${currentOpFilter === 'today' ? 'اليوم' : ''}.</div>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      list.forEach(t => {
+        let itemsHtml = '';
+        t.items.forEach((item, idx) => {
+          let adjBadge = '';
+          if (item.adjustmentStatus === 'pending') adjBadge = `<span style="color: var(--warning); font-size: 10px;">(تعديل معلق: ${item.requestedPrice} ر.س)</span>`;
+          if (item.adjustmentStatus === 'approved') adjBadge = `<span style="color: var(--success); font-size: 10px;">(تم التعديل: ${item.finalPrice} ر.س)</span>`;
+
+          itemsHtml += `
+            <div style="display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; border-bottom: 1px dashed #e2e8f0;">
+              <span>• ${item.name} ${adjBadge}</span>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <strong>${item.finalPrice} ر.س</strong>
+                ${item.adjustmentStatus !== 'pending' ? `
+                  <button onclick="openEditTxModal('${t.id}', ${idx})" style="background: none; border: 0; color: var(--gold); font-size: 10px; font-weight: 800; cursor: pointer; text-decoration: underline;">
+                    تعديل
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        });
+
+        const card = document.createElement('div');
+        card.className = 'cart-pill';
+        card.style.flexDirection = 'column';
+        card.style.alignItems = 'stretch';
+        card.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div>
+              <strong style="font-size: 13px;">${t.clientName}</strong>
+              <small style="color: var(--muted); margin-right: 6px;">${t.time} | ${t.paymentMethod}</small>
+              ${t.isDebt ? `<span class="badge-status badge-pending">دين معزول</span>` : ''}
+            </div>
+            <strong style="color: var(--primary); font-size: 14px;">${t.totalAmount} ر.س</strong>
+          </div>
+          <div>${itemsHtml}</div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function openEditTxModal(txId, itemIdx) {
+      const tx = DB.transactions.find(t => String(t.id) === String(txId));
+      if (!tx || !tx.items[itemIdx]) return;
+
+      const itm = tx.items[itemIdx];
+      document.getElementById('edit-tx-id').value = txId;
+      document.getElementById('edit-tx-item-idx').value = itemIdx;
+      document.getElementById('edit-tx-service-name').value = itm.name;
+      document.getElementById('edit-tx-old-price').value = `${itm.finalPrice} ريال`;
+      document.getElementById('edit-tx-new-price').value = itm.requestedPrice || itm.finalPrice;
+
+      const isMgr = currentUser.role === 'manager';
+      document.getElementById('edit-tx-mode-label').innerText = isMgr ? "تعديل فوري ومباشر" : "طلب تعديل يُعلق للمدير";
+      document.getElementById('edit-tx-reason-group').style.display = isMgr ? 'none' : 'block';
+
+      document.getElementById('modal-edit-tx').style.display = 'flex';
+    }
+
+    function closeEditTxModal() {
+      document.getElementById('modal-edit-tx').style.display = 'none';
+    }
+
+    async function submitTxEdit() {
+      const txId = document.getElementById('edit-tx-id').value;
+      const idx = parseInt(document.getElementById('edit-tx-item-idx').value);
+      const newPrice = parseFloat(document.getElementById('edit-tx-new-price').value);
+      const reason = document.getElementById('edit-tx-reason').value.trim();
+
+      if (isNaN(newPrice) || newPrice < 0) return showToast("أدخل سعراً صحيحاً");
+
+      const tx = DB.transactions.find(t => String(t.id) === String(txId));
+      if (!tx || !tx.items[idx]) return;
+
+      if (currentUser.role === 'manager') {
+        tx.items[idx].finalPrice = newPrice;
+        tx.items[idx].adjustmentStatus = 'approved';
+
+        let newTotal = 0;
+        tx.items.forEach(it => newTotal += Number(it.finalPrice));
+        const barber = DB.users.find(u => String(u.id) === String(tx.barberId));
+        const comm = (barber && typeof barber.commission === 'number') ? barber.commission : 0.5;
+
+        tx.totalAmount = newTotal;
+        tx.barberShare = Math.round(newTotal * comm);
+        tx.salonShare = newTotal - tx.barberShare;
+
+        saveLocalData();
+        closeEditTxModal();
+        renderManagerData();
+        renderProfileData();
+        if (document.getElementById('modal-barber-detail').style.display === 'flex') {
+          openBarberDetailModal(tx.barberId);
+        }
+
+        try {
+          await fetch(`${API_BASE}/transactions/decide-adjustment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ txId, itemIndex: idx, approve: true, directPrice: newPrice })
+          });
+        } catch (e) {}
+
+        showToast("تم تحديث الفاتورة وإجمالي المبلغ بنجاح");
+      } else {
+        if (!reason) return showToast("يرجى كتابة سبب التعديل للمدير");
+
+        tx.items[idx].adjustmentStatus = 'pending';
+        tx.items[idx].requestedPrice = newPrice;
+        tx.items[idx].adjustmentReason = reason;
+        tx.hasPendingAdjustments = true;
+
+        saveLocalData();
+        closeEditTxModal();
+        renderProfileData();
+
+        try {
+          await fetch(`${API_BASE}/transactions/request-adjustment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ txId, itemIndex: idx, requestedPrice: newPrice, reason })
+          });
+        } catch (e) {}
+
+        showToast("تم إرسال التعديل وسيبقى معلقاً حتى موافقة المدير");
+      }
+    }
+
+    async function deleteTransactionByManager(txId) {
+      if (!confirm("هل أنت متأكد من مسح هذه الفاتورة نهائياً؟ سيتم تراجع مبالغها من الدخل.")) return;
+
+      const txIndex = DB.transactions.findIndex(t => String(t.id) === String(txId));
+      if (txIndex === -1) return;
+
+      const deletedTx = DB.transactions[txIndex];
+      DB.transactions.splice(txIndex, 1);
+      saveLocalData();
+
+      renderManagerData();
+      openBarberDetailModal(deletedTx.barberId);
+
+      try {
+        await fetch(`${API_BASE}/transactions/${txId}`, { method: 'DELETE' });
+      } catch (e) {}
+
+      showToast("تم مسح الفاتورة بنجاح وتحديث الحسابات");
+    }
+
+    function renderManagerData() {
+      if (currentUser.role !== 'manager') return;
+
+      let salonTotal = 0;
+      let barbersTotal = 0;
+      let debtToday = 0;
+      let debtMonth = 0;
+      let pendingList = [];
+
+      const today = new Date().toISOString().slice(0, 10);
+      const currentMonth = today.slice(0, 7);
+
+      DB.transactions.forEach(tx => {
+        if (tx.isDebt) {
+          if (tx.date === today) debtToday += Number(tx.totalAmount || 0);
+          if (tx.date && tx.date.startsWith(currentMonth)) debtMonth += Number(tx.totalAmount || 0);
+
+          if (tx.debtStatus === 'pending') {
+            pendingList.push({
+              type: 'debt',
+              txId: tx.id,
+              title: `طلب اعتماد دين: ${tx.totalAmount} ر.س`,
+              sub: `الحلاق: ${tx.barberName} | الزبون: ${tx.clientName}`
+            });
+          }
+        } else {
+          salonTotal += Number(tx.totalAmount || 0);
+          barbersTotal += Number(tx.barberShare || 0);
+        }
+
+        if (Array.isArray(tx.items)) {
+          tx.items.forEach((item, itemIdx) => {
+            if (item.adjustmentStatus === 'pending') {
+              pendingList.push({
+                type: 'price_adj',
+                txId: tx.id,
+                itemIndex: itemIdx,
+                title: `طلب تعديل سعر (${item.name}): ${item.finalPrice} ← ${item.requestedPrice} ر.س`,
+                sub: `الحلاق: ${tx.barberName} | السبب: "${item.adjustmentReason}"`
+              });
+            }
+          });
+        }
+      });
+
+      document.getElementById('mgr-total-sales').innerText = salonTotal;
+      document.getElementById('mgr-barbers-share').innerText = barbersTotal;
+      document.getElementById('mgr-debt-today').innerText = `${debtToday} ر.س`;
+      document.getElementById('mgr-debt-month').innerText = `${debtMonth} ر.س`;
+      document.getElementById('mgr-pending-count').innerText = `${pendingList.length} طلب`;
+
+      const pContainer = document.getElementById('mgr-pending-requests');
+      if (pendingList.length === 0) {
+        pContainer.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 12px; padding: 12px;">لا توجد طلبات معلقة للموافقة.</div>`;
+      } else {
+        pContainer.innerHTML = '';
+        pendingList.forEach(p => {
+          const div = document.createElement('div');
+          div.className = 'cart-pill';
+          div.style.flexDirection = 'column';
+          div.style.alignItems = 'stretch';
+          div.innerHTML = `
+            <div style="font-weight: 800; font-size: 12px; color: var(--primary);">${p.title}</div>
+            <div style="font-size: 11px; color: var(--muted); margin: 3px 0 8px;">${p.sub}</div>
+            <div style="display: flex; gap: 6px;">
+              <button onclick="${p.type === 'debt' ? `decideDebt('${p.txId}', true)` : `decideAdj('${p.txId}', ${p.itemIndex}, true)`}" class="btn btn-success" style="padding: 6px; font-size: 11px;">موافقة واعتماد</button>
+              <button onclick="${p.type === 'debt' ? `decideDebt('${p.txId}', false)` : `decideAdj('${p.txId}', ${p.itemIndex}, false)`}" class="btn btn-danger-light" style="padding: 6px; font-size: 11px;">رفض</button>
+            </div>
+          `;
+          pContainer.appendChild(div);
+        });
+      }
+
+      const attContainer = document.getElementById('mgr-attendance-list');
+      attContainer.innerHTML = '';
+      DB.users.filter(u => u.role === 'barber').forEach(b => {
+        const isPresent = b.attendance && b.attendance.status === 'present';
+        const arrive = b.attendance?.checkIn || 'لم يصل بعد';
+        const leave = b.attendance?.checkOut || (isPresent ? 'مستمر في العمل' : 'لم يسجل خروج');
+
+        const row = document.createElement('div');
+        row.className = 'cart-pill';
+        row.innerHTML = `
+          <div>
+            <strong>${b.name}</strong>
+            <span class="badge-status ${isPresent ? 'badge-present' : 'badge-absent'}" style="margin-right:6px;">
+              ${isPresent ? 'حاضر الآن' : 'منصرف'}
+            </span>
+          </div>
+          <div style="text-align: left; font-size: 11px;">
+            <div style="color: var(--success); font-weight:700;">وصل: ${arrive}</div>
+            <div style="color: var(--muted);">خرج: ${leave}</div>
+          </div>
+        `;
+        attContainer.appendChild(row);
+      });
+
+      // قائمة الحلاقين: تتيح تعديل وحذف أي حساب بحرية
+      const listContainer = document.getElementById('mgr-barbers-clickable-list');
+      listContainer.innerHTML = '';
+      DB.users.forEach(u => {
+        const row = document.createElement('div');
+        row.className = 'cart-pill';
+        row.style.cursor = 'pointer';
+
+        row.onclick = () => openBarberDetailModal(u.id);
+
+        row.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <img src="${u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+            <div>
+              <strong style="font-size: 13px;">${u.name}</strong>
+              <small style="color: var(--muted); display: block;">الصلاحية: ${u.role === 'manager' ? 'مدير' : 'حلاق'} | النسبة: ${Math.round((u.commission || 0.5) * 100)}% | الدخول: ${u.username}</small>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <button onclick="event.stopPropagation(); openBarberModal('${u.id}')" style="border: 0; background: var(--surface); border: 1px solid var(--border); padding: 5px 9px; border-radius: 8px; font-size: 11px; cursor: pointer; color: var(--gold);" title="تعديل الحساب والنسبة">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button onclick="event.stopPropagation(); deleteBarber('${u.id}')" style="border: 0; background: #fee2e2; border: 1px solid #fecaca; padding: 5px 9px; border-radius: 8px; font-size: 11px; cursor: pointer; color: var(--danger);" title="حذف الحساب نهائياً">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+            <i class="fa-solid fa-chevron-left text-muted" style="margin-right: 4px;"></i>
+          </div>
+        `;
+        listContainer.appendChild(row);
+      });
+    }
+
+    function openBarberDetailModal(barberId) {
+      const barber = DB.users.find(u => String(u.id) === String(barberId));
+      if (!barber) return;
+
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      document.getElementById('detail-barber-name').innerText = `تصفية حساب: ${barber.name}`;
+      document.getElementById('detail-barber-month').innerText = `شهر: ${currentMonth}`;
+
+      const monthTxs = DB.transactions.filter(t => String(t.barberId) === String(barberId) && t.date && t.date.startsWith(currentMonth));
+
+      let netShare = 0;
+      let totalMonthSales = 0;
+      let cashTotal = 0;
+      let cardTotal = 0;
+      let debtTotal = 0;
+
+      monthTxs.forEach(t => {
+        if (t.isDebt) {
+          debtTotal += Number(t.totalAmount || 0);
+        } else {
+          totalMonthSales += Number(t.totalAmount || 0);
+          netShare += Number(t.barberShare || 0);
+          if (t.paymentMethod && t.paymentMethod.includes('كاش')) cashTotal += Number(t.totalAmount || 0);
+          if (t.paymentMethod && t.paymentMethod.includes('شبكة')) cardTotal += Number(t.totalAmount || 0);
+        }
+      });
+
+      document.getElementById('detail-barber-net').innerText = netShare;
+      document.getElementById('detail-barber-total-month').innerText = totalMonthSales;
+      document.getElementById('detail-barber-cash').innerText = cashTotal;
+      document.getElementById('detail-barber-card').innerText = cardTotal;
+      document.getElementById('detail-barber-debt').innerText = debtTotal;
+
+      const flushBtn = document.getElementById('btn-flush-single-barber');
+      flushBtn.onclick = () => flushSingleBarberPreviousMonth(barber.id, barber.name);
+
+      const txsContainer = document.getElementById('detail-barber-txs');
+      if (monthTxs.length === 0) {
+        txsContainer.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 11px; padding: 12px;">لا توجد أي فواتير مسجلة لهذا الحساب في هذا الشهر.</div>`;
+      } else {
+        txsContainer.innerHTML = '';
+        monthTxs.forEach(t => {
+          const div = document.createElement('div');
+          div.className = 'cart-pill';
+          div.innerHTML = `
+            <div>
+              <strong>${t.clientName}</strong>
+              <small style="color: var(--muted); margin-right: 4px;">(${t.time} | ${t.paymentMethod})</small>
+              ${t.isDebt ? `<span class="badge-status badge-pending" style="font-size:9px;">دين</span>` : ''}
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="color: var(--gold); font-weight:800; margin-left: 4px;">${t.totalAmount} ر.س</span>
+              <button onclick="openEditTxModal('${t.id}', 0)" style="border: 0; background: var(--surface); border: 1px solid var(--border); padding: 3px 7px; border-radius: 6px; font-size: 11px; cursor: pointer; color: var(--primary);" title="تعديل">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button onclick="deleteTransactionByManager('${t.id}')" style="border: 0; background: #fee2e2; border: 1px solid #fecaca; padding: 3px 7px; border-radius: 6px; font-size: 11px; cursor: pointer; color: var(--danger);" title="مسح">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          `;
+          txsContainer.appendChild(div);
+        });
+      }
+
+      document.getElementById('modal-barber-detail').style.display = 'flex';
+    }
+
+    function closeBarberDetailModal() {
+      document.getElementById('modal-barber-detail').style.display = 'none';
+    }
+
+    async function flushSingleBarberPreviousMonth(barberId, barberName) {
+      const now = new Date();
+      now.setMonth(now.getMonth() - 1);
+      const prevMonth = now.toISOString().slice(0, 7);
+
+      const confirmAction = confirm(`هل أنت متأكد من مسح جميع فواتير الشهر السابق (${prevMonth}) لـ [${barberName}] نهائياً من قاعدة البيانات؟`);
+      if (!confirmAction) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/transactions/barber-monthly-flush`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ barberId, monthPrefix: prevMonth })
+        });
+        const result = await res.json();
+
+        if (result.success) {
+          DB.transactions = DB.transactions.filter(t => !(String(t.barberId) === String(barberId) && t.date && t.date.startsWith(prevMonth)));
+          saveLocalData();
+          renderManagerData();
+          openBarberDetailModal(barberId);
+          showToast(`تم مسح وتصفية بيانات الشهر السابق لـ ${barberName} بنجاح (${result.deletedCount || 0} فاتورة)`);
+        } else {
+          showToast("فشلت عملية المسح من الخادم: " + (result.error || "خطأ غير معروف"));
+        }
+      } catch (err) {
+        showToast("تعذر الاتصال بالخادم لمسح البيانات!");
+      }
+    }
+
+    async function decideDebt(txId, approve) {
+      const tx = DB.transactions.find(t => String(t.id) === String(txId));
+      if (tx) {
+        tx.debtStatus = approve ? 'approved' : 'rejected';
+        saveLocalData();
+        renderManagerData();
+        try {
+          await fetch(`${API_BASE}/transactions/decide-debt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ txId: tx.id, approve })
+          });
+        } catch (e) {}
+        showToast(approve ? "تم اعتماد الدين" : "تم رفض الدين");
+      }
+    }
+
+    async function decideAdj(txId, itemIdx, approve) {
+      const tx = DB.transactions.find(t => String(t.id) === String(txId));
+      if (tx && tx.items[itemIdx]) {
+        const item = tx.items[itemIdx];
+        item.adjustmentStatus = approve ? 'approved' : 'rejected';
+        if (approve) item.finalPrice = Number(item.requestedPrice);
+
+        let newTotal = 0;
+        let hasPending = false;
+        tx.items.forEach(it => {
+          newTotal += Number(it.finalPrice || 0);
+          if (it.adjustmentStatus === 'pending') hasPending = true;
+        });
+
+        const b = DB.users.find(u => String(u.id) === String(tx.barberId));
+        const comm = (b && typeof b.commission === 'number') ? b.commission : 0.5;
+        tx.totalAmount = newTotal;
+        tx.barberShare = Math.round(newTotal * comm);
+        tx.salonShare = newTotal - tx.barberShare;
+        tx.hasPendingAdjustments = hasPending;
+
+        saveLocalData();
+        renderManagerData();
+        renderProfileData();
+
+        try {
+          await fetch(`${API_BASE}/transactions/decide-adjustment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ txId: tx.id, itemIndex: itemIdx, approve })
+          });
+        } catch (e) {}
+        showToast(approve ? `تم اعتماد السعر الجديد وإجمالي الفاتورة (${newTotal} ر.س)` : "تم رفض التعديل");
+      }
+    }
+
+    async function flushMonthlyData() {
+      const confirmAction = confirm("⚠️ تحذير نهائي: هل أنت متأكد من تصفية بيانات وفواتير الشهر بالكامل لكل الصالون؟");
+      if (!confirmAction) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/transactions/monthly-flush`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await res.json();
+        if (result.success) {
+          DB.transactions = [];
+          DB.clientCounters = {};
+          saveLocalData();
+          renderManagerData();
+          showToast("تمت تصفية بيانات الشهر بنجاح");
+        } else {
+          showToast("فشلت عملية التصفية من السيرفر!");
+        }
+      } catch (e) {
+        showToast("تعذر الاتصال بالخادم لتصفية البيانات!");
+      }
+    }
+
+    function openBarberModal(userId = null) {
+      document.getElementById('modal-barber-title').innerText = userId ? "تعديل بيانات الحساب" : "إضافة حلاق جديد";
+      document.getElementById('barber-edit-id').value = userId || '';
+      
+      if (userId) {
+        const u = DB.users.find(x => String(x.id) === String(userId));
+        if (!u) return;
+        document.getElementById('barber-edit-name').value = u.name;
+        document.getElementById('barber-edit-user').value = u.username;
+        document.getElementById('barber-edit-pass').value = u.password;
+        document.getElementById('barber-edit-comm').value = Math.round((u.commission !== undefined ? u.commission : 0.5) * 100);
+        document.getElementById('barber-edit-role').value = u.role;
+      } else {
+        document.getElementById('barber-edit-name').value = '';
+        document.getElementById('barber-edit-user').value = '';
+        document.getElementById('barber-edit-pass').value = '1234';
+        document.getElementById('barber-edit-comm').value = '50';
+        document.getElementById('barber-edit-role').value = 'barber';
+      }
+      document.getElementById('modal-barber-edit').style.display = 'flex';
+    }
+
+    function closeBarberModal() {
+      document.getElementById('modal-barber-edit').style.display = 'none';
+    }
+
+    async function saveBarberForm() {
+      const bId = document.getElementById('barber-edit-id').value;
+      const name = document.getElementById('barber-edit-name').value.trim();
+      const user = document.getElementById('barber-edit-user').value.trim();
+      const pass = document.getElementById('barber-edit-pass').value.trim() || '1234';
+      const commRaw = document.getElementById('barber-edit-comm').value.trim();
+      const commVal = parseFloat(commRaw);
+      const role = document.getElementById('barber-edit-role').value;
+
+      if (!name || !user) return showToast("يرجى إكمال الاسم واسم الدخول");
+      if (isNaN(commVal) || commVal < 0 || commVal > 100) return showToast("يرجى إدخال نسبة صحيحة بين 0 و 100");
+
+      const finalCommissionRatio = commVal / 100;
+
+      const payload = { 
+        id: bId || undefined, 
+        name, 
+        username: user, 
+        password: pass, 
+        commission: finalCommissionRatio, 
+        role 
+      };
+
+      if (bId) {
+        const u = DB.users.find(x => String(x.id) === String(bId));
+        if (u) { 
+          u.name = name; 
+          u.username = user; 
+          u.password = pass; 
+          u.commission = finalCommissionRatio; 
+          u.role = role; 
+        }
+      } else {
+        DB.users.push({
+          id: 'u_' + Date.now().toString().slice(-4),
+          name, 
+          username: user, 
+          password: pass, 
+          role,
+          commission: finalCommissionRatio,
+          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          attendance: role === 'barber' ? { status: 'absent', checkIn: null, checkOut: null } : null
+        });
+      }
+
+      saveLocalData();
+      closeBarberModal();
+      renderManagerData();
+
+      try {
+        await fetch(`${API_BASE}/users/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {}
+
+      showToast(`تم حفظ الحساب بنجاح`);
+    }
+
+    // حذف الحساب نهائياً من النظام ومونجو (يمكن حذف حساب المدير الافتراضي هنا)
+    async function deleteBarber(userId) {
+      const barber = DB.users.find(u => String(u.id) === String(userId));
+      const barberName = barber ? barber.name : "هذا الحساب";
+
+      const confirmDelete = confirm(`⚠️ هل أنت متأكد من حذف الحساب [${barberName}] نهائياً من قاعدة البيانات؟`);
+      if (!confirmDelete) return;
+
+      DB.users = DB.users.filter(u => String(u.id) !== String(userId));
+      saveLocalData();
+      renderManagerData();
+
+      try {
+        await fetch(`${API_BASE}/users/${userId}`, { method: 'DELETE' });
+      } catch (e) {}
+
+      showToast(`تم حذف الحساب [${barberName}] نهائياً بنجاح`);
+    }
+
+    async function handleAvatarUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function(evt) {
+        currentUser.avatar = evt.target.result;
+        updateTopBarInfo();
+
+        const idx = DB.users.findIndex(u => String(u.id) === String(currentUser.id));
+        if (idx > -1) DB.users[idx].avatar = currentUser.avatar;
+        saveLocalData();
+
+        try {
+          await fetch(`${API_BASE}/users/profile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, avatar: currentUser.avatar })
+          });
+        } catch (e) {}
+
+        showToast("تم تحديث صورتك الشخصية");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function handleProfileUpdate(e) {
+      e.preventDefault();
+      const uName = document.getElementById('settings-username').value.trim();
+      const pass = document.getElementById('settings-password').value.trim();
+
+      if (!uName) return showToast("اسم المستخدم مطلوب");
+
+      currentUser.username = uName;
+      if (pass) currentUser.password = pass;
+
+      const idx = DB.users.findIndex(u => String(u.id) === String(currentUser.id));
+      if (idx > -1) DB.users[idx] = currentUser;
+      saveLocalData();
+
+      try {
+        await fetch(`${API_BASE}/users/profile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id, username: uName, password: pass })
+        });
+      } catch (e) {}
+
+      showToast("تم حفظ التعديلات بنجاح");
+    }
+
+    function updatePendingBadges() {
+      let pendingCount = 0;
+      DB.transactions.forEach(tx => {
+        if (tx.isDebt && tx.debtStatus === 'pending') pendingCount++;
+        if (Array.isArray(tx.items)) {
+          tx.items.forEach(i => { if (i.adjustmentStatus === 'pending') pendingCount++; });
+        }
+      });
+
+      const dot = document.getElementById('nav-pending-dot');
+      if (dot) {
+        dot.innerText = pendingCount;
+        dot.style.display = (pendingCount > 0) ? 'grid' : 'none';
+      }
+      const mdot = document.getElementById('menu-pending-dot');
+      if (mdot) {
+        const isMgr = currentUser && currentUser.role === 'manager';
+        mdot.innerText = pendingCount;
+        mdot.style.display = (isMgr && pendingCount > 0) ? 'grid' : 'none';
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-text').innerText = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+  </script>
+</body>
+</html>
