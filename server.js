@@ -99,8 +99,31 @@ mongoose.connection.once('open', async () => {
 
 // ======================= واجهات برمجة التطبيقات (API) ======================= //
 
-// 1. جلب البيانات الأولية (محمية ومحسنة الأداء)
-  // 1. جلب البيانات الأولية مع الحقول المطلوبة للواجهة
+// 0. مسار تسجيل الدخول المباشر من قاعدة البيانات
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: 'اسم المستخدم وكلمة المرور مطلوبان' });
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = String(password).trim();
+
+    // فحص مباشر داخل MongoDB Atlas
+    const user = await User.findOne({ username: cleanUsername }).lean();
+
+    if (!user || String(user.password).trim() !== cleanPassword) {
+      return res.status(401).json({ success: false, message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+    }
+
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 1. جلب البيانات الأولية
 app.get('/api/initial-data', async (req, res) => {
   try {
     const users = await User.find().lean();
@@ -110,6 +133,7 @@ app.get('/api/initial-data', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
 // 2. تسجيل الفاتورة مع منع التكرار الذري
 app.post('/api/transactions', async (req, res) => {
   try {
@@ -290,16 +314,17 @@ app.post('/api/users/save', async (req, res) => {
     const { id, name, username, password, commission, role } = req.body;
     const parsedCommission = (commission !== undefined && !isNaN(commission)) ? Number(commission) : 0.5;
 
-    if (id) {
-      await User.findByIdAndUpdate(id, { 
+    let savedUser;
+    if (id && mongoose.Types.ObjectId.isValid(id)) {
+      savedUser = await User.findByIdAndUpdate(id, { 
         name, 
         username: username.toLowerCase().trim(), 
         password, 
         commission: parsedCommission, 
         role 
-      });
+      }, { new: true });
     } else {
-      await User.create({
+      savedUser = await User.create({
         name,
         username: username.toLowerCase().trim(),
         password,
@@ -309,7 +334,7 @@ app.post('/api/users/save', async (req, res) => {
         attendance: role === 'barber' ? { status: 'absent', checkIn: null, checkOut: null } : null
       });
     }
-    res.json({ success: true });
+    res.json({ success: true, user: savedUser });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
