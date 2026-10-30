@@ -287,7 +287,7 @@
           <img id="header-avatar" src="" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
           <span id="header-user-name">---</span>
         </div>
-        <button onclick="syncFromDatabase(true)" class="btn btn-secondary" style="width: 36px; height: 36px; padding: 0; border-radius: 10px;" title="مزامنة">
+        <button onclick="syncFromDatabase(true)" class="btn btn-secondary" style="width: 36px; height: 36px; padding: 0; border-radius: 10px;" title="مزامنة فورية">
           <i id="sync-icon" class="fa-solid fa-rotate"></i>
         </button>
         <button onclick="handleLogout()" class="btn btn-secondary" style="width: 36px; height: 36px; padding: 0; border-radius: 10px; color: var(--danger);" title="خروج">
@@ -372,24 +372,24 @@
         </div>
       </section>
 
-      <!-- TAB 2: حساب الحلاق وسجل العمليات -->
+      <!-- TAB 2: حساب الحلاق وسجل العمليات (إخفاء النسبة وإظهار الصافي وإجمالي الفواتير) -->
       <section id="view-profile" class="view-section">
-        <!-- الصف الأول: الدخل ونسبة الربح -->
+        <!-- الصف الأول: إجمالي فواتير اليوم، إجمالي فواتير الشهر، وصافي ربح الحلاق -->
         <div class="stats-row" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 8px;">
           <div class="stat-box">
-            <span>إجمالي دخل اليوم</span>
-            <strong id="my-day-earnings">0</strong>
-            <span style="font-size: 9px;">ريال صافي</span>
+            <span>إجمالي فواتير اليوم</span>
+            <strong id="my-day-sales">0</strong>
+            <span style="font-size: 9px;">ريال</span>
           </div>
           <div class="stat-box">
-            <span>إجمالي دخل الشهر</span>
-            <strong id="my-total-earnings">0</strong>
-            <span style="font-size: 9px;">ريال صافي</span>
+            <span>إجمالي فواتير الشهر</span>
+            <strong id="my-month-sales">0</strong>
+            <span style="font-size: 9px;">ريال</span>
           </div>
           <div class="stat-box" style="background: var(--gold-light); border-color: rgba(176, 139, 75, 0.35);">
-            <span style="color: var(--gold);">نسبة الربح</span>
-            <strong id="my-commission-rate" style="color: var(--gold);">50%</strong>
-            <span style="font-size: 9px; color: var(--muted);">معتمدة من المدير</span>
+            <span style="color: var(--gold);">صافي ربح الحلاق</span>
+            <strong id="my-net-profit" style="color: var(--gold);">0</strong>
+            <span style="font-size: 9px; color: var(--muted);">ريال صافي</span>
           </div>
         </div>
 
@@ -743,11 +743,28 @@
     let currentCart = [];
     let selectedPayment = 'كاش (نقداً)';
     let currentOpFilter = 'today';
+    let isSyncing = false;
+    let isMutating = false; // لمنع التضارب أثناء إرسال عملية جديدة للسيرفر
+    let activeModalBarberId = null;
 
     window.addEventListener('DOMContentLoaded', async () => {
       initLocalData();
       checkSavedSession();
       await syncFromDatabase(false);
+
+      // تحديث تلقائي في الزمن الفعلي كل 4 ثوانٍ بدون تدخل المستخدم
+      setInterval(() => {
+        if (currentUser && !document.hidden && !isMutating) {
+          syncFromDatabase(false);
+        }
+      }, 4000);
+
+      // تحديث فوري عند عودة المستخدم لشاشة التطبيق
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && currentUser && !isMutating) {
+          syncFromDatabase(false);
+        }
+      });
     });
 
     function initLocalData() {
@@ -764,28 +781,49 @@
     }
 
     async function syncFromDatabase(showToastMsg = false) {
+      if (isSyncing || isMutating) return;
+      isSyncing = true;
+
       const icon = document.getElementById('sync-icon');
-      if (icon) icon.classList.add('fa-spin');
+      if (icon && showToastMsg) icon.classList.add('fa-spin');
 
       try {
-        const res = await fetch(`${API_BASE}/initial-data`);
+        const res = await fetch(`${API_BASE}/initial-data`, { cache: 'no-store' });
         const data = await res.json();
-        if (data.success) {
+        if (data.success && !isMutating) {
           if (data.users?.length) DB.users = data.users.map(u => ({ ...u, id: u._id || u.id }));
           if (Array.isArray(data.transactions)) DB.transactions = data.transactions.map(t => ({ ...t, id: t.txId || t._id || t.id }));
           saveLocalData();
-          populateServicesDropdown();
+
           if (currentUser) {
-            currentUser = DB.users.find(u => String(u.id) === String(currentUser.id)) || currentUser;
+            const updatedMe = DB.users.find(u => String(u.id) === String(currentUser.id) || u.username === currentUser.username);
+            if (updatedMe) {
+              currentUser = updatedMe;
+              localStorage.setItem('barber_user_id_v9', currentUser.id);
+            }
             updateTopBarInfo();
             renderProfileData();
-            setDefaultClientName();
+            if (currentUser.role === 'manager') {
+              renderManagerData();
+              // تحديث نافذة تفاصيل الحلاق تلقائياً إذا كانت مفتوحة ولم يكن زر التأكيد مضغوطاً
+              const detailModal = document.getElementById('modal-barber-detail');
+              const flushBtn = document.getElementById('btn-flush-single-barber');
+              if (detailModal && detailModal.style.display === 'flex' && activeModalBarberId && (!flushBtn || !flushBtn.dataset.confirmed)) {
+                openBarberDetailModal(activeModalBarberId, true);
+              }
+            }
+            // تحديث رقم الزبون التلقائي فقط إذا لم يكن المستخدم يكتب فيه حالياً
+            const custInput = document.getElementById('cust-name-input');
+            if (document.activeElement !== custInput && (!custInput.value || custInput.value.startsWith('زبون '))) {
+              setDefaultClientName();
+            }
           }
           if (showToastMsg) showToast("تمت المزامنة بنجاح مع السيرفر السحابي");
         }
       } catch (e) {
         if (showToastMsg) showToast("تعذر الاتصال بقاعدة البيانات السحابية");
       } finally {
+        isSyncing = false;
         if (icon) icon.classList.remove('fa-spin');
       }
     }
@@ -893,16 +931,19 @@
       if (!currentUser) return;
       const latestUser = DB.users.find(u => String(u.id) === String(currentUser.id)) || currentUser;
       currentUser = latestUser;
-      const commPercent = Math.round((typeof currentUser.commission === 'number' ? currentUser.commission : 0.5) * 100);
 
       document.getElementById('header-user-name').innerText = currentUser.name.split(' ')[0];
       document.getElementById('header-avatar').src = currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
       document.getElementById('drawer-avatar').src = currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
       document.getElementById('drawer-user-name').innerText = currentUser.name;
-      document.getElementById('drawer-user-role').innerText = currentUser.role === 'manager' ? 'مدير الصالون' : `حلاق (${commPercent}%)`;
+      // إخفاء النسبة المئوية من القائمة الجانبية للحلاق تماماً
+      document.getElementById('drawer-user-role').innerText = currentUser.role === 'manager' ? 'مدير الصالون' : 'حلاق معتمد';
       document.getElementById('profile-avatar-preview').src = currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
-      document.getElementById('settings-username').value = currentUser.username;
-      document.getElementById('settings-password').value = '';
+      
+      const settingsUserEl = document.getElementById('settings-username');
+      if (document.activeElement !== settingsUserEl) {
+        settingsUserEl.value = currentUser.username;
+      }
       updateAttendanceBadge();
     }
 
@@ -1120,6 +1161,7 @@
         }
       }
 
+      isMutating = true;
       const nextNum = getNextClientNumber();
       const custName = document.getElementById('cust-name-input').value.trim() || `زبون ${currentUser.name.split(' ')[0]} ${nextNum}`;
 
@@ -1166,22 +1208,28 @@
       DB.clientCounters[currentUser.id] = nextNum;
       saveLocalData();
 
+      currentCart = [];
+      setDefaultClientName();
+      renderBillItems();
+      renderProfileData();
+      if (currentUser.role === 'manager') renderManagerData();
+
       try {
         await fetch(`${API_BASE}/transactions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(tx)
         });
-      } catch (e) {}
+      } catch (e) {} finally {
+        isMutating = false;
+      }
 
-      currentCart = [];
-      setDefaultClientName();
-      renderBillItems();
       showToast(isDebt ? "سُجلت كـ (دين معزول) بانتظار اعتماد المدير" : `تم تسجيل فاتورة (${custName}) بنجاح`);
     }
 
     async function recordAttendance(type) {
       if (!currentUser || currentUser.role !== 'barber') return;
+      isMutating = true;
       const time = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
 
       if (!currentUser.attendance) currentUser.attendance = {};
@@ -1200,7 +1248,9 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser.id, status: currentUser.attendance.status, time })
         });
-      } catch (e) {}
+      } catch (e) {} finally {
+        isMutating = false;
+      }
 
       showToast(type === 'in' ? `تم تسجيل حضورك الساعة: ${time}` : `تم تسجيل انصرافك الساعة: ${time}`);
     }
@@ -1230,13 +1280,13 @@
       renderProfileData();
     }
 
+    // حساب وعرض إجمالي فواتير اليوم، إجمالي فواتير الشهر، وصافي ربح الحلاق (بدون إظهار النسبة)
     function renderProfileData() {
       if (!currentUser) return;
 
-      // جلب أحدث بيانات المستخدم من مصفوفة المدير لضمان قراءة النسبة المحدثة
       const syncedUser = DB.users.find(u => String(u.id) === String(currentUser.id)) || currentUser;
       currentUser = syncedUser;
-      const commPercent = Math.round((typeof currentUser.commission === 'number' ? currentUser.commission : 0.5) * 100);
+      const commRatio = (typeof currentUser.commission === 'number') ? currentUser.commission : 0.5;
 
       const myTx = DB.transactions.filter(t => String(t.barberId) === String(currentUser.id));
       const today = new Date().toISOString().slice(0, 10);
@@ -1245,15 +1295,27 @@
       const myToday = myTx.filter(t => t.date === today);
       const myMonth = myTx.filter(t => t.date && t.date.startsWith(currentMonth));
 
-      let dayEarnings = 0;
-      let monthEarnings = 0;
+      let dayTotalBills = 0;   // إجمالي فواتير اليوم
+      let monthTotalBills = 0; // إجمالي فواتير الشهر
+      let barberNetProfit = 0; // صافي ربح الحلاق حسب نسبة المدير
 
-      myToday.forEach(t => { if (!t.isDebt && t.debtStatus !== 'rejected') dayEarnings += (t.barberShare || 0); });
-      myMonth.forEach(t => { if (!t.isDebt && t.debtStatus !== 'rejected') monthEarnings += (t.barberShare || 0); });
+      myToday.forEach(t => {
+        if (!t.isDebt && t.debtStatus !== 'rejected') {
+          dayTotalBills += Number(t.totalAmount || 0);
+        }
+      });
 
-      document.getElementById('my-day-earnings').innerText = dayEarnings;
-      document.getElementById('my-total-earnings').innerText = monthEarnings;
-      document.getElementById('my-commission-rate').innerText = `${commPercent}%`;
+      myMonth.forEach(t => {
+        if (!t.isDebt && t.debtStatus !== 'rejected') {
+          const amt = Number(t.totalAmount || 0);
+          monthTotalBills += amt;
+          barberNetProfit += Math.round(amt * commRatio);
+        }
+      });
+
+      document.getElementById('my-day-sales').innerText = dayTotalBills;
+      document.getElementById('my-month-sales').innerText = monthTotalBills;
+      document.getElementById('my-net-profit').innerText = barberNetProfit;
       document.getElementById('my-day-clients').innerText = myToday.length;
       document.getElementById('my-month-clients').innerText = myMonth.length;
 
@@ -1340,6 +1402,8 @@
       const tx = DB.transactions.find(t => String(t.id) === String(txId));
       if (!tx || !tx.items[idx]) return;
 
+      isMutating = true;
+
       if (currentUser.role === 'manager') {
         tx.items[idx].finalPrice = newPrice;
         tx.items[idx].adjustmentStatus = 'approved';
@@ -1358,7 +1422,7 @@
         renderManagerData();
         renderProfileData();
         if (document.getElementById('modal-barber-detail').style.display === 'flex') {
-          openBarberDetailModal(tx.barberId);
+          openBarberDetailModal(tx.barberId, true);
         }
 
         try {
@@ -1367,11 +1431,16 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ txId, itemIndex: idx, approve: true, directPrice: newPrice })
           });
-        } catch (e) {}
+        } catch (e) {} finally {
+          isMutating = false;
+        }
 
         showToast("تم تحديث الفاتورة وإجمالي المبلغ بنجاح");
       } else {
-        if (!reason) return showToast("يرجى كتابة سبب التعديل للمدير");
+        if (!reason) {
+          isMutating = false;
+          return showToast("يرجى كتابة سبب التعديل للمدير");
+        }
 
         tx.items[idx].adjustmentStatus = 'pending';
         tx.items[idx].requestedPrice = newPrice;
@@ -1388,7 +1457,9 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ txId, itemIndex: idx, requestedPrice: newPrice, reason })
           });
-        } catch (e) {}
+        } catch (e) {} finally {
+          isMutating = false;
+        }
 
         showToast("تم إرسال التعديل وسيبقى معلقاً حتى موافقة المدير");
       }
@@ -1398,23 +1469,27 @@
       const txIndex = DB.transactions.findIndex(t => String(t.id) === String(txId));
       if (txIndex === -1) return;
 
+      isMutating = true;
       const deletedTx = DB.transactions[txIndex];
       DB.transactions.splice(txIndex, 1);
       saveLocalData();
 
       renderManagerData();
-      openBarberDetailModal(deletedTx.barberId);
+      renderProfileData();
+      openBarberDetailModal(deletedTx.barberId, true);
       setDefaultClientName();
 
       try {
         await fetch(`${API_BASE}/transactions/${txId}`, { method: 'DELETE' });
-      } catch (e) {}
+      } catch (e) {} finally {
+        isMutating = false;
+      }
 
       showToast("تم مسح الفاتورة بنجاح وتحديث الحسابات");
     }
 
     function renderManagerData() {
-      if (currentUser.role !== 'manager') return;
+      if (!currentUser || currentUser.role !== 'manager') return;
 
       let salonTotal = 0;
       let barbersTotal = 0;
@@ -1426,21 +1501,26 @@
       const currentMonth = today.slice(0, 7);
 
       DB.transactions.forEach(tx => {
+        const barber = DB.users.find(u => String(u.id) === String(tx.barberId));
+        const comm = (barber && typeof barber.commission === 'number') ? barber.commission : 0.5;
+        const amt = Number(tx.totalAmount || 0);
+        const calculatedShare = Math.round(amt * comm);
+
         if (tx.isDebt) {
-          if (tx.date === today) debtToday += Number(tx.totalAmount || 0);
-          if (tx.date && tx.date.startsWith(currentMonth)) debtMonth += Number(tx.totalAmount || 0);
+          if (tx.date === today) debtToday += amt;
+          if (tx.date && tx.date.startsWith(currentMonth)) debtMonth += amt;
 
           if (tx.debtStatus === 'pending') {
             pendingList.push({
               type: 'debt',
               txId: tx.id,
-              title: `طلب اعتماد دين: ${tx.totalAmount} ر.س`,
+              title: `طلب اعتماد دين: ${amt} ر.س`,
               sub: `الحلاق: ${tx.barberName} | الزبون: ${tx.clientName}`
             });
           }
-        } else {
-          salonTotal += Number(tx.totalAmount || 0);
-          barbersTotal += Number(tx.barberShare || 0);
+        } else if (tx.debtStatus !== 'rejected') {
+          salonTotal += amt;
+          barbersTotal += calculatedShare;
         }
 
         if (Array.isArray(tx.items)) {
@@ -1510,7 +1590,7 @@
         attContainer.appendChild(row);
       });
 
-      // قائمة الحلاقين
+      // قائمة الحلاقين لدى المدير فقط (تظهر النسبة للمدير للتحكم بها)
       const listContainer = document.getElementById('mgr-barbers-clickable-list');
       listContainer.innerHTML = '';
       DB.users.forEach(u => {
@@ -1543,11 +1623,14 @@
       });
     }
 
-    function openBarberDetailModal(barberId) {
+    function openBarberDetailModal(barberId, isSilentRefresh = false) {
       const barber = DB.users.find(u => String(u.id) === String(barberId));
       if (!barber) return;
 
+      activeModalBarberId = barber.id;
+      const comm = (typeof barber.commission === 'number') ? barber.commission : 0.5;
       const currentMonth = new Date().toISOString().slice(0, 7);
+
       document.getElementById('detail-barber-name').innerText = `حساب الحلاق: ${barber.name}`;
       document.getElementById('detail-barber-month').innerText = `شهر: ${currentMonth}`;
 
@@ -1560,13 +1643,14 @@
       let debtTotal = 0;
 
       monthTxs.forEach(t => {
+        const amt = Number(t.totalAmount || 0);
         if (t.isDebt) {
-          debtTotal += Number(t.totalAmount || 0);
-        } else {
-          totalMonthSales += Number(t.totalAmount || 0);
-          netShare += Number(t.barberShare || 0);
-          if (t.paymentMethod && t.paymentMethod.includes('كاش')) cashTotal += Number(t.totalAmount || 0);
-          if (t.paymentMethod && t.paymentMethod.includes('شبكة')) cardTotal += Number(t.totalAmount || 0);
+          debtTotal += amt;
+        } else if (t.debtStatus !== 'rejected') {
+          totalMonthSales += amt;
+          netShare += Math.round(amt * comm);
+          if (t.paymentMethod && t.paymentMethod.includes('كاش')) cashTotal += amt;
+          if (t.paymentMethod && t.paymentMethod.includes('شبكة')) cardTotal += amt;
         }
       });
 
@@ -1576,12 +1660,13 @@
       document.getElementById('detail-barber-card').innerText = cardTotal;
       document.getElementById('detail-barber-debt').innerText = debtTotal;
 
-      // ربط زر التصفية للحلاق بنظام النقرتين للعمل على المتصفح والأندرويد
       const flushBtn = document.getElementById('btn-flush-single-barber');
-      flushBtn.dataset.confirmed = "";
-      flushBtn.style.background = "";
-      flushBtn.style.color = "";
-      flushBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> تصفية ومسح فواتير هذا الحلاق وتصفير حسابه';
+      if (!isSilentRefresh) {
+        flushBtn.dataset.confirmed = "";
+        flushBtn.style.background = "";
+        flushBtn.style.color = "";
+        flushBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> تصفية ومسح فواتير هذا الحلاق وتصفير حسابه';
+      }
 
       flushBtn.onclick = (e) => {
         e.preventDefault();
@@ -1620,6 +1705,7 @@
     }
 
     function closeBarberDetailModal() {
+      activeModalBarberId = null;
       document.getElementById('modal-barber-detail').style.display = 'none';
     }
 
@@ -1627,7 +1713,6 @@
     async function flushSingleBarberData(barberId, barberName) {
       const btn = document.getElementById('btn-flush-single-barber');
       
-      // تأكيد بالنقرة الثانية لتفادي حظر WebView للنافذة
       if (!btn.dataset.confirmed) {
         btn.dataset.confirmed = "true";
         btn.style.background = "#dc2626";
@@ -1644,11 +1729,11 @@
         return;
       }
 
+      isMutating = true;
       btn.dataset.confirmed = "";
       btn.disabled = true;
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري المسح والتصفير...';
 
-      // 1. مسح فواتير الحلاق محلياً وتحديث الشاشة فوراً
       DB.transactions = (DB.transactions || []).filter(t => 
         String(t.barberId) !== String(barberId) && t.barberName !== barberName
       );
@@ -1659,17 +1744,17 @@
       setDefaultClientName();
 
       try {
-        // 2. إرسال أمر المسح الفعلي لقاعدة البيانات
         const res = await fetch(`${API_BASE}/transactions/barber-monthly-flush`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ barberId: String(barberId) })
+          body: JSON.stringify({ barberId: String(barberId), barberName: String(barberName) })
         });
         const result = await res.json();
         showToast(`تم مسح وتصفية فواتير ${barberName} بنجاح (${result.deletedCount || 0} فاتورة)`);
       } catch (err) {
         showToast("تمت التصفية بنجاح على هذا الجهاز");
       } finally {
+        isMutating = false;
         closeBarberDetailModal();
         if (btn) {
           btn.disabled = false;
@@ -1683,16 +1768,21 @@
     async function decideDebt(txId, approve) {
       const tx = DB.transactions.find(t => String(t.id) === String(txId));
       if (tx) {
+        isMutating = true;
         tx.debtStatus = approve ? 'approved' : 'rejected';
+        if (approve) tx.isDebt = false;
         saveLocalData();
         renderManagerData();
+        renderProfileData();
         try {
           await fetch(`${API_BASE}/transactions/decide-debt`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ txId: tx.id, approve })
           });
-        } catch (e) {}
+        } catch (e) {} finally {
+          isMutating = false;
+        }
         showToast(approve ? "تم اعتماد الدين" : "تم رفض الدين");
       }
     }
@@ -1700,6 +1790,7 @@
     async function decideAdj(txId, itemIdx, approve) {
       const tx = DB.transactions.find(t => String(t.id) === String(txId));
       if (tx && tx.items[itemIdx]) {
+        isMutating = true;
         const item = tx.items[itemIdx];
         item.adjustmentStatus = approve ? 'approved' : 'rejected';
         if (approve) item.finalPrice = Number(item.requestedPrice);
@@ -1728,7 +1819,9 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ txId: tx.id, itemIndex: itemIdx, approve })
           });
-        } catch (e) {}
+        } catch (e) {} finally {
+          isMutating = false;
+        }
         showToast(approve ? `تم اعتماد السعر الجديد وإجمالي الفاتورة (${newTotal} ر.س)` : "تم رفض التعديل");
       }
     }
@@ -1737,7 +1830,6 @@
     async function flushMonthlyData() {
       const btn = document.getElementById('btn-global-flush');
       
-      // تأكيد بالنقرة الثانية لضمان الأمان في التطبيق
       if (!btn.dataset.confirmed) {
         btn.dataset.confirmed = "true";
         btn.style.background = "#b91c1c";
@@ -1752,11 +1844,11 @@
         return;
       }
 
+      isMutating = true;
       btn.dataset.confirmed = "";
       btn.disabled = true;
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري تصفية النظام بالكامل...';
 
-      // 1. تصفير كامل للذاكرة محلياً فوراً
       DB.transactions = [];
       DB.clientCounters = {};
       saveLocalData();
@@ -1765,7 +1857,6 @@
       setDefaultClientName();
 
       try {
-        // 2. إرسال أمر المسح الشامل لقاعدة البيانات السحابية
         const res = await fetch(`${API_BASE}/transactions/monthly-flush`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
@@ -1775,6 +1866,7 @@
       } catch (e) {
         showToast("تم تصفير النظام محلياً لتبدأ الفاتورة من 1");
       } finally {
+        isMutating = false;
         if (btn) {
           btn.disabled = false;
           btn.style.background = "";
@@ -1821,6 +1913,7 @@
       if (!name || !user) return showToast("يرجى إكمال الاسم واسم الدخول");
       if (isNaN(commVal) || commVal < 0 || commVal > 100) return showToast("يرجى إدخال نسبة صحيحة بين 0 و 100");
 
+      isMutating = true;
       const finalCommissionRatio = commVal / 100;
 
       const payload = { 
@@ -1842,12 +1935,21 @@
         
         if (data.success && data.user) {
           const freshUser = { ...data.user, id: data.user._id || data.user.id };
-          const uIdx = DB.users.findIndex(x => String(x.id) === String(freshUser.id));
+          const uIdx = DB.users.findIndex(x => String(x.id) === String(freshUser.id) || String(x.id) === String(bId));
           if (uIdx > -1) {
             DB.users[uIdx] = freshUser;
           } else {
             DB.users.push(freshUser);
           }
+
+          // تحديث حصة الحلاق في الفواتير المحلية فوراً
+          DB.transactions.forEach(t => {
+            if (String(t.barberId) === String(freshUser.id) || String(t.barberId) === String(bId)) {
+              t.barberName = name;
+              t.barberShare = Math.round(Number(t.totalAmount || 0) * finalCommissionRatio);
+              t.salonShare = Number(t.totalAmount || 0) - t.barberShare;
+            }
+          });
         }
       } catch (e) {
         if (bId) {
@@ -1871,6 +1973,8 @@
             attendance: role === 'barber' ? { status: 'absent', checkIn: null, checkOut: null } : null
           });
         }
+      } finally {
+        isMutating = false;
       }
 
       if (currentUser && String(currentUser.id) === String(bId)) {
@@ -1882,13 +1986,14 @@
       closeBarberModal();
       renderManagerData();
       renderProfileData();
-      showToast(`تم حفظ الحساب بنجاح`);
+      showToast(`تم حفظ الحساب وتحديث صافي الأرباح بنجاح`);
     }
 
     async function deleteBarber(userId) {
       const barber = DB.users.find(u => String(u.id) === String(userId));
       const barberName = barber ? barber.name : "هذا الحساب";
 
+      isMutating = true;
       DB.users = DB.users.filter(u => String(u.id) !== String(userId));
       if (DB.clientCounters) delete DB.clientCounters[userId];
       saveLocalData();
@@ -1897,7 +2002,9 @@
 
       try {
         await fetch(`${API_BASE}/users/${userId}`, { method: 'DELETE' });
-      } catch (e) {}
+      } catch (e) {} finally {
+        isMutating = false;
+      }
 
       showToast(`تم حذف الحساب [${barberName}] نهائياً بنجاح`);
     }
@@ -1908,6 +2015,7 @@
 
       const reader = new FileReader();
       reader.onload = async function(evt) {
+        isMutating = true;
         currentUser.avatar = evt.target.result;
         updateTopBarInfo();
 
@@ -1921,7 +2029,9 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: currentUser.id, avatar: currentUser.avatar })
           });
-        } catch (e) {}
+        } catch (e) {} finally {
+          isMutating = false;
+        }
 
         showToast("تم تحديث صورتك الشخصية");
       };
@@ -1935,6 +2045,7 @@
 
       if (!uName) return showToast("اسم المستخدم مطلوب");
 
+      isMutating = true;
       currentUser.username = uName;
       if (pass) currentUser.password = pass;
 
@@ -1948,8 +2059,11 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser.id, username: uName, password: pass })
         });
-      } catch (e) {}
+      } catch (e) {} finally {
+        isMutating = false;
+      }
 
+      document.getElementById('settings-password').value = '';
       showToast("تم حفظ التعديلات بنجاح");
     }
 
