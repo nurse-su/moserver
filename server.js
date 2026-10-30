@@ -11,7 +11,7 @@ app.use(express.json({ limit: '10mb' }));
 // تقديم ملفات الواجهة من مجلد public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// رابط MongoDB Atlas (يُقرأ من المتغيرات البيئية أو يعتمد الرابط الافتراضي)
+// رابط MongoDB Atlas
 const DEFAULT_MONGO_URI = 'mongodb+srv://sbmsd2020_db_user:WLverdVttU6qoXdK@cluster0.v1vhvuf.mongodb.net/barbershop_db?retryWrites=true&w=majority';
 const MONGO_URI = process.env.MONGO_URI || DEFAULT_MONGO_URI;
 
@@ -110,7 +110,6 @@ app.post('/api/login', async (req, res) => {
     const cleanUsername = username.trim().toLowerCase();
     const cleanPassword = String(password).trim();
 
-    // فحص مباشر داخل MongoDB Atlas
     const user = await User.findOne({ username: cleanUsername }).lean();
 
     if (!user || String(user.password).trim() !== cleanPassword) {
@@ -183,7 +182,7 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
-// 5. تصفية وحذف فواتير حلاق منفرد (محدث للبحث الشامل والمباشر)
+// 5. تصفية وحذف فواتير حلاق منفرد بشكل كامل
 app.post('/api/transactions/barber-monthly-flush', async (req, res) => {
   try {
     const { barberId } = req.body;
@@ -191,7 +190,7 @@ app.post('/api/transactions/barber-monthly-flush', async (req, res) => {
       return res.status(400).json({ success: false, error: 'معرّف الحلاق مطلوب' });
     }
 
-    // حذف الفواتير التابعة للحلاق سواء تم تخزين المعرف كـ String أو ObjectId أو باسم الحلاق
+    // مسح فواتير الحلاق سواء طابقت الـ ID أو اسم الحلاق
     const result = await Transaction.deleteMany({
       $or: [
         { barberId: String(barberId) },
@@ -199,10 +198,10 @@ app.post('/api/transactions/barber-monthly-flush', async (req, res) => {
       ]
     });
 
-    console.log(`✔ تم حذف ${result.deletedCount} فاتورة للحلاق (${barberId})`);
+    console.log(`✔ تم حذف ${result.deletedCount} فاتورة للحلاق (${barberId}) بنجاح`);
     res.json({ success: true, deletedCount: result.deletedCount });
   } catch (err) {
-    console.error('❌ خطأ في تصفية فواتير الحلاق:', err.message);
+    console.error('❌ خطأ في مسح فواتير الحلاق:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -211,10 +210,10 @@ app.post('/api/transactions/barber-monthly-flush', async (req, res) => {
 app.post('/api/transactions/monthly-flush', async (req, res) => {
   try {
     const result = await Transaction.deleteMany({});
-    console.log(`✔ تمت التصفية الشاملة ومسح ${result.deletedCount} فاتورة من صالون المروج`);
+    console.log(`✔ تم مسح جميع فواتير الصالون بالكامل (${result.deletedCount} فاتورة)`);
     res.json({ success: true, deletedCount: result.deletedCount });
   } catch (err) {
-    console.error('❌ خطأ في التصفية الشاملة:', err.message);
+    console.error('❌ خطأ في التصفية الشاملة للصالون:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
