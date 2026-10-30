@@ -482,7 +482,7 @@
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
             <div>
               <h2 class="card-title" style="margin: 0;">إدارة فريق العمل والحلاقين</h2>
-              <small style="color: var(--muted); font-size: 10px;">اضغط على اسم الحلاق لعرض تصفية الشهر، أو استخدم الأزرار للتعديل والحذف</small>
+              <small style="color: var(--muted); font-size: 10px;">اضغط على اسم الحلاق لعرض تصفية حسابه وفواتيره، أو استخدم الأزرار للتعديل والحذف</small>
             </div>
             <button onclick="openBarberModal()" class="btn btn-gold" style="width: auto; padding: 6px 12px; font-size: 11px;">
               + إضافة حلاق
@@ -496,9 +496,9 @@
             <span><i class="fa-solid fa-trash-can ml-1"></i> تصفية نهاية الشهر الكلية للصالون</span>
           </h2>
           <p style="font-size: 11px; color: var(--muted); margin: 0 0 10px;">
-            تقوم هذه العملية بمسح جميع فواتير الشهر لكل الصالون وتصفير العدادات لبدء دورة جديدة من الفاتورة رقم 1.
+            تقوم هذه العملية بمسح جميع فواتير الصالون بالكامل وتصفير العدادات لتبدأ الفاتورة القادمة من رقم 1.
           </p>
-          <button onclick="flushMonthlyData()" class="btn btn-danger">
+          <button type="button" id="btn-global-flush" onclick="flushMonthlyData()" class="btn btn-danger">
             <i class="fa-solid fa-triangle-exclamation"></i> تصفية جميع فواتير الشهر وتصفير النظام
           </button>
         </div>
@@ -560,7 +560,7 @@
     </div>
   </div>
 
-  <!-- Modal 1: نافذة التصفية الشهرية المنفردة للحلاق عند المدير -->
+  <!-- Modal 1: نافذة تصفية وفواتير الحلاق عند المدير -->
   <div id="modal-barber-detail" class="modal-overlay" style="display: none;">
     <div class="modal-sheet">
       <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 12px;">
@@ -568,7 +568,7 @@
           <h3 id="detail-barber-name" style="margin: 0; font-size: 15px; font-weight: 800; color: var(--primary);">---</h3>
           <small id="detail-barber-month" style="color: var(--muted); font-weight: 700;"></small>
         </div>
-        <button onclick="closeBarberDetailModal()" style="background: none; border: 0; font-size: 16px; cursor: pointer;">✕</button>
+        <button type="button" onclick="closeBarberDetailModal()" style="background: none; border: 0; font-size: 18px; cursor: pointer;">✕</button>
       </div>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;">
@@ -602,14 +602,14 @@
         </div>
       </div>
 
-      <div style="font-size: 12px; font-weight: 700; color: var(--muted); margin: 8px 0 4px;">كل فواتير الحلاق في الشهر:</div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--muted); margin: 8px 0 4px;">كل فواتير الحلاق في هذا الشهر:</div>
       <div id="detail-barber-txs" style="display: grid; gap: 6px; max-height: 200px; overflow-y: auto;"></div>
 
       <div style="margin-top: 12px; display: grid; gap: 8px;">
-        <button id="btn-flush-single-barber" class="btn btn-danger-light" style="font-size: 11px; padding: 8px;">
-          <i class="fa-solid fa-trash-can"></i> مسح وتصفية بيانات الشهر السابق لهذا الحلاق
+        <button type="button" id="btn-flush-single-barber" class="btn btn-danger-light" style="font-size: 12px; padding: 10px;">
+          <i class="fa-solid fa-trash-can"></i> تصفية ومسح فواتير هذا الحلاق وتصفير حسابه
         </button>
-        <button onclick="closeBarberDetailModal()" class="btn btn-secondary">إغلاق</button>
+        <button type="button" onclick="closeBarberDetailModal()" class="btn btn-secondary">إغلاق</button>
       </div>
     </div>
   </div>
@@ -645,8 +645,8 @@
       </div>
 
       <div style="display: flex; gap: 8px; margin-top: 14px;">
-        <button onclick="submitTxEdit()" class="btn btn-primary" style="flex: 2;">حفظ التعديل</button>
-        <button onclick="closeEditTxModal()" class="btn btn-secondary" style="flex: 1;">إلغاء</button>
+        <button type="button" onclick="submitTxEdit()" class="btn btn-primary" style="flex: 2;">حفظ التعديل</button>
+        <button type="button" onclick="closeEditTxModal()" class="btn btn-secondary" style="flex: 1;">إلغاء</button>
       </div>
     </div>
   </div>
@@ -685,8 +685,8 @@
         </div>
       </div>
       <div style="display: flex; gap: 8px; margin-top: 14px;">
-        <button onclick="saveBarberForm()" class="btn btn-primary" style="flex: 2;">حفظ بيانات الحلاق</button>
-        <button onclick="closeBarberModal()" class="btn btn-secondary" style="flex: 1;">إلغاء</button>
+        <button type="button" onclick="saveBarberForm()" class="btn btn-primary" style="flex: 2;">حفظ بيانات الحلاق</button>
+        <button type="button" onclick="closeBarberModal()" class="btn btn-secondary" style="flex: 1;">إلغاء</button>
       </div>
     </div>
   </div>
@@ -756,7 +756,7 @@
         const data = await res.json();
         if (data.success) {
           if (data.users?.length) DB.users = data.users.map(u => ({ ...u, id: u._id || u.id }));
-          if (data.transactions) DB.transactions = data.transactions.map(t => ({ ...t, id: t.txId || t._id || t.id }));
+          if (Array.isArray(data.transactions)) DB.transactions = data.transactions.map(t => ({ ...t, id: t.txId || t._id || t.id }));
           saveLocalData();
           populateServicesDropdown();
           if (currentUser) {
@@ -765,10 +765,10 @@
             renderProfileData();
             setDefaultClientName();
           }
-          if (showToastMsg) showToast("تمت المزامنة بنجاح مع MongoDB Atlas");
+          if (showToastMsg) showToast("تمت المزامنة بنجاح مع السيرفر السحابي");
         }
       } catch (e) {
-        if (showToastMsg) showToast("العمل في الوضع المحلي (أوفلاين)");
+        if (showToastMsg) showToast("تعذر الاتصال بقاعدة البيانات السحابية");
       } finally {
         if (icon) icon.classList.remove('fa-spin');
       }
@@ -785,7 +785,6 @@
       }
     }
 
-    // تسجيل الدخول المباشر من قاعدة بيانات MongoDB عبر السيرفر
     async function handleLogin(e) {
       e.preventDefault();
       const u = document.getElementById('login-username').value.trim().toLowerCase();
@@ -828,7 +827,6 @@
         await syncFromDatabase(false);
 
       } catch (error) {
-        // Fallback في حال انقطاع الشبكة
         const found = DB.users.find(x => x.username.toLowerCase() === u && String(x.password) === p);
         if (found) {
           currentUser = found;
@@ -1520,7 +1518,7 @@
       if (!barber) return;
 
       const currentMonth = new Date().toISOString().slice(0, 7);
-      document.getElementById('detail-barber-name').innerText = `تصفية حساب: ${barber.name}`;
+      document.getElementById('detail-barber-name').innerText = `حساب الحلاق: ${barber.name}`;
       document.getElementById('detail-barber-month').innerText = `شهر: ${currentMonth}`;
 
       const monthTxs = DB.transactions.filter(t => String(t.barberId) === String(barberId) && t.date && t.date.startsWith(currentMonth));
@@ -1548,12 +1546,16 @@
       document.getElementById('detail-barber-card').innerText = cardTotal;
       document.getElementById('detail-barber-debt').innerText = debtTotal;
 
+      // ربط زر التصفية للحلاق ليمسح فواتيره بدقة
       const flushBtn = document.getElementById('btn-flush-single-barber');
-      flushBtn.onclick = () => flushSingleBarberPreviousMonth(barber.id, barber.name);
+      flushBtn.onclick = (e) => {
+        e.preventDefault();
+        flushSingleBarberData(barber.id, barber.name);
+      };
 
       const txsContainer = document.getElementById('detail-barber-txs');
       if (monthTxs.length === 0) {
-        txsContainer.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 11px; padding: 12px;">لا توجد أي فواتير مسجلة لهذا الحساب في هذا الشهر.</div>`;
+        txsContainer.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 11px; padding: 12px;">لا توجد أي فواتير مسجلة لهذا الحلاق في هذا الشهر.</div>`;
       } else {
         txsContainer.innerHTML = '';
         monthTxs.forEach(t => {
@@ -1586,38 +1588,42 @@
       document.getElementById('modal-barber-detail').style.display = 'none';
     }
 
-    async function flushSingleBarberPreviousMonth(barberId, barberName) {
-      const now = new Date();
-      now.setMonth(now.getMonth() - 1);
-      const prevMonth = now.toISOString().slice(0, 7);
-
-      const confirmAction = confirm(`هل أنت متأكد من مسح جميع فواتير الشهر السابق (${prevMonth}) لـ [${barberName}] نهائياً من قاعدة البيانات؟`);
+    // تصفية ومسح فواتير حلاق محدد مع تصفير عداد فواتيره
+    async function flushSingleBarberData(barberId, barberName) {
+      const confirmAction = confirm(`هل أنت متأكد من مسح جميع فواتير [${barberName}] نهائياً من قاعدة البيانات وتصفير حسابه؟`);
       if (!confirmAction) return;
 
+      const btn = document.getElementById('btn-flush-single-barber');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري المسح...';
+
       try {
+        // حذف فواتير الحلاق محلياً فوراً
+        DB.transactions = DB.transactions.filter(t => String(t.barberId) !== String(barberId));
+        if (DB.clientCounters) delete DB.clientCounters[barberId];
+        saveLocalData();
+        renderManagerData();
+        openBarberDetailModal(barberId);
+        setDefaultClientName();
+
+        // إرسال طلب المسح للسيرفر
         const res = await fetch(`${API_BASE}/transactions/barber-monthly-flush`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ barberId, monthPrefix: prevMonth })
+          body: JSON.stringify({ barberId: String(barberId) })
         });
         const result = await res.json();
 
         if (result.success) {
-          DB.transactions = DB.transactions.filter(t => !(String(t.barberId) === String(barberId) && t.date && t.date.startsWith(prevMonth)));
-          
-          // تصفير عداد الحلاق وإعادة ضبط الحقل التلقائي
-          if (DB.clientCounters) delete DB.clientCounters[barberId];
-          saveLocalData();
-          renderManagerData();
-          openBarberDetailModal(barberId);
-          setDefaultClientName();
-          
-          showToast(`تم مسح وتصفية بيانات الشهر السابق لـ ${barberName} بنجاح (${result.deletedCount || 0} فاتورة)`);
+          showToast(`تم مسح فواتير ${barberName} بنجاح وتصفير حسابه`);
         } else {
-          showToast("فشلت عملية المسح من الخادم: " + (result.error || "خطأ غير معروف"));
+          showToast("تم المسح محلياً وفشل على الخادم: " + (result.error || ""));
         }
       } catch (err) {
-        showToast("تعذر الاتصال بالخادم لمسح البيانات!");
+        showToast("تم المسح محلياً (تعذر الاتصال بالسيرفر)");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> تصفية ومسح فواتير هذا الحلاق وتصفير حسابه';
       }
     }
 
@@ -1676,27 +1682,43 @@
 
     // تصفية شاملة لجميع فواتير الصالون وتصفير كامل أرقام الفواتير لتبدأ من 1
     async function flushMonthlyData() {
-      const confirmAction = confirm("⚠️ تحذير نهائي: هل أنت متأكد من تصفية بيانات وفواتير الشهر بالكامل لكل الصالون؟ سيتم تصفير أرقام الفواتير لتبدأ من جديد من 1.");
+      const confirmAction = confirm("⚠️ تحذير نهائي: هل أنت متأكد من تصفية بيانات وفواتير الصالون بالكامل؟ سيتم مسح الفواتير وتصفير العداد لتبدأ الفاتورة التالية من رقم 1.");
       if (!confirmAction) return;
 
+      const btn = document.getElementById('btn-global-flush');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري تصفية النظام...';
+      }
+
       try {
+        // مسح محلي فوري وتصفير العدادات
+        DB.transactions = [];
+        DB.clientCounters = {};
+        saveLocalData();
+        renderManagerData();
+        renderProfileData();
+        setDefaultClientName();
+
+        // إرسال أمر المسح الشامل لقاعدة البيانات السحابية
         const res = await fetch(`${API_BASE}/transactions/monthly-flush`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
         const result = await res.json();
+
         if (result.success) {
-          DB.transactions = [];
-          DB.clientCounters = {}; // تصفير كامل للعدادات
-          saveLocalData();
-          renderManagerData();
-          setDefaultClientName(); // يعيد خانة الفاتورة إلى "زبون 1" فوراً
-          showToast("تمت تصفية بيانات الشهر وتصفير عداد الفواتير لتبدأ من 1");
+          showToast("تمت تصفية جميع فواتير الصالون وتصفير النظام بنجاح (1)");
         } else {
-          showToast("فشلت عملية التصفية من السيرفر!");
+          showToast("تمت التصفية محلياً، وحدث خطأ في السيرفر: " + (result.error || ""));
         }
       } catch (e) {
-        showToast("تعذر الاتصال بالخادم لتصفية البيانات!");
+        showToast("تمت التصفية محلياً (تعذر الاتصال بالسيرفر السحابي)");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> تصفية جميع فواتير الشهر وتصفير النظام';
+        }
       }
     }
 
@@ -1796,7 +1818,6 @@
       showToast(`تم حفظ الحساب بنجاح`);
     }
 
-    // حذف الحساب نهائياً من النظام ومونجو (يمكن حذف حساب المدير الافتراضي هنا)
     async function deleteBarber(userId) {
       const barber = DB.users.find(u => String(u.id) === String(userId));
       const barberName = barber ? barber.name : "هذا الحساب";
