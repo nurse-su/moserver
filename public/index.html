@@ -496,7 +496,7 @@
             <span><i class="fa-solid fa-trash-can ml-1"></i> تصفية نهاية الشهر الكلية للصالون</span>
           </h2>
           <p style="font-size: 11px; color: var(--muted); margin: 0 0 10px;">
-            تقوم هذه العملية بمسح جميع فواتير الشهر لكل الصالون لبدء دورة جديدة.
+            تقوم هذه العملية بمسح جميع فواتير الشهر لكل الصالون وتصفير العدادات لبدء دورة جديدة من الفاتورة رقم 1.
           </p>
           <button onclick="flushMonthlyData()" class="btn btn-danger">
             <i class="fa-solid fa-triangle-exclamation"></i> تصفية جميع فواتير الشهر وتصفير النظام
@@ -763,6 +763,7 @@
             currentUser = DB.users.find(u => String(u.id) === String(currentUser.id)) || currentUser;
             updateTopBarInfo();
             renderProfileData();
+            setDefaultClientName();
           }
           if (showToastMsg) showToast("تمت المزامنة بنجاح مع MongoDB Atlas");
         }
@@ -906,10 +907,20 @@
       window.scrollTo(0, 0);
     }
 
+    // حساب رقم الفاتورة الحالي بناءً على عدد فواتير الحلاق لليوم الحالي لضمان عودته لـ 1 عند التصفية
+    function getNextClientNumber() {
+      if (!currentUser) return 1;
+      const today = new Date().toISOString().slice(0, 10);
+      const todayCount = (DB.transactions || []).filter(t => 
+        String(t.barberId) === String(currentUser.id) && t.date === today
+      ).length;
+      return todayCount + 1;
+    }
+
     function setDefaultClientName() {
       if (!currentUser) return;
-      const count = (DB.clientCounters[currentUser.id] || 0) + 1;
-      document.getElementById('cust-name-input').value = `زبون ${currentUser.name.split(' ')[0]} ${count}`;
+      const nextNum = getNextClientNumber();
+      document.getElementById('cust-name-input').value = `زبون ${currentUser.name.split(' ')[0]} ${nextNum}`;
     }
 
     function toggleDrawer(open) {
@@ -1092,8 +1103,8 @@
         }
       }
 
-      const count = (DB.clientCounters[currentUser.id] || 0) + 1;
-      const custName = document.getElementById('cust-name-input').value.trim() || `زبون ${currentUser.name.split(' ')[0]} ${count}`;
+      const nextNum = getNextClientNumber();
+      const custName = document.getElementById('cust-name-input').value.trim() || `زبون ${currentUser.name.split(' ')[0]} ${nextNum}`;
 
       let total = 0;
       const items = currentCart.map(c => {
@@ -1134,7 +1145,7 @@
       };
 
       DB.transactions.unshift(tx);
-      DB.clientCounters[currentUser.id] = count;
+      DB.clientCounters[currentUser.id] = nextNum;
       saveLocalData();
 
       try {
@@ -1365,6 +1376,7 @@
 
       renderManagerData();
       openBarberDetailModal(deletedTx.barberId);
+      setDefaultClientName();
 
       try {
         await fetch(`${API_BASE}/transactions/${txId}`, { method: 'DELETE' });
@@ -1592,9 +1604,14 @@
 
         if (result.success) {
           DB.transactions = DB.transactions.filter(t => !(String(t.barberId) === String(barberId) && t.date && t.date.startsWith(prevMonth)));
+          
+          // تصفير عداد الحلاق وإعادة ضبط الحقل التلقائي
+          if (DB.clientCounters) delete DB.clientCounters[barberId];
           saveLocalData();
           renderManagerData();
           openBarberDetailModal(barberId);
+          setDefaultClientName();
+          
           showToast(`تم مسح وتصفية بيانات الشهر السابق لـ ${barberName} بنجاح (${result.deletedCount || 0} فاتورة)`);
         } else {
           showToast("فشلت عملية المسح من الخادم: " + (result.error || "خطأ غير معروف"));
@@ -1657,8 +1674,9 @@
       }
     }
 
+    // تصفية شاملة لجميع فواتير الصالون وتصفير كامل أرقام الفواتير لتبدأ من 1
     async function flushMonthlyData() {
-      const confirmAction = confirm("⚠️ تحذير نهائي: هل أنت متأكد من تصفية بيانات وفواتير الشهر بالكامل لكل الصالون؟");
+      const confirmAction = confirm("⚠️ تحذير نهائي: هل أنت متأكد من تصفية بيانات وفواتير الشهر بالكامل لكل الصالون؟ سيتم تصفير أرقام الفواتير لتبدأ من جديد من 1.");
       if (!confirmAction) return;
 
       try {
@@ -1669,10 +1687,11 @@
         const result = await res.json();
         if (result.success) {
           DB.transactions = [];
-          DB.clientCounters = {};
+          DB.clientCounters = {}; // تصفير كامل للعدادات
           saveLocalData();
           renderManagerData();
-          showToast("تمت تصفية بيانات الشهر بنجاح");
+          setDefaultClientName(); // يعيد خانة الفاتورة إلى "زبون 1" فوراً
+          showToast("تمت تصفية بيانات الشهر وتصفير عداد الفواتير لتبدأ من 1");
         } else {
           showToast("فشلت عملية التصفية من السيرفر!");
         }
@@ -1786,8 +1805,10 @@
       if (!confirmDelete) return;
 
       DB.users = DB.users.filter(u => String(u.id) !== String(userId));
+      if (DB.clientCounters) delete DB.clientCounters[userId];
       saveLocalData();
       renderManagerData();
+      setDefaultClientName();
 
       try {
         await fetch(`${API_BASE}/users/${userId}`, { method: 'DELETE' });
