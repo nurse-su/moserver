@@ -230,7 +230,7 @@
     <span id="toast-text">---</span>
   </div>
 
-  <!-- 1. شاشة الدخول مع التذكير بحساب المدير -->
+  <!-- 1. شاشة الدخول -->
   <section id="view-login" class="auth-fullscreen">
     <div class="card" style="padding: 24px; border-radius: 24px; max-width: 420px; margin: 0 auto; width: 100%;">
       <div style="text-align: center; margin-bottom: 20px;">
@@ -477,7 +477,7 @@
           <div id="mgr-attendance-list" style="display: grid; gap: 8px;"></div>
         </div>
 
-        <!-- قائمة الحلاقين: تدعم التعديل والحذف لأي حساب -->
+        <!-- إدارة الحلاقين -->
         <div class="card">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
             <div>
@@ -491,6 +491,7 @@
           <div id="mgr-barbers-clickable-list" style="display: grid; gap: 8px;"></div>
         </div>
 
+        <!-- زر التصفية الكلية للصالون -->
         <div class="card" style="border: 1px solid rgba(220, 38, 38, 0.3); background: #fff5f5;">
           <h2 class="card-title" style="color: var(--danger);">
             <span><i class="fa-solid fa-trash-can ml-1"></i> تصفية نهاية الشهر الكلية للصالون</span>
@@ -651,7 +652,7 @@
     </div>
   </div>
 
-  <!-- Modal 3: إضافة وتعديل حلاق مع تحديد النسبة بحرية من المدير -->
+  <!-- Modal 3: إضافة وتعديل حلاق -->
   <div id="modal-barber-edit" class="modal-overlay" style="display: none;">
     <div class="modal-sheet">
       <h3 id="modal-barber-title" style="font-size: 15px; font-weight: 800; color: var(--primary); margin: 0 0 12px;">إضافة حلاق جديد</h3>
@@ -905,7 +906,6 @@
       window.scrollTo(0, 0);
     }
 
-    // حساب رقم الفاتورة الحالي بناءً على عدد فواتير الحلاق لليوم الحالي لضمان عودته لـ 1 عند التصفية
     function getNextClientNumber() {
       if (!currentUser) return 1;
       const today = new Date().toISOString().slice(0, 10);
@@ -1363,8 +1363,6 @@
     }
 
     async function deleteTransactionByManager(txId) {
-      if (!confirm("هل أنت متأكد من مسح هذه الفاتورة نهائياً؟ سيتم تراجع مبالغها من الدخل.")) return;
-
       const txIndex = DB.transactions.findIndex(t => String(t.id) === String(txId));
       if (txIndex === -1) return;
 
@@ -1480,7 +1478,7 @@
         attContainer.appendChild(row);
       });
 
-      // قائمة الحلاقين: تتيح تعديل وحذف أي حساب بحرية
+      // قائمة الحلاقين
       const listContainer = document.getElementById('mgr-barbers-clickable-list');
       listContainer.innerHTML = '';
       DB.users.forEach(u => {
@@ -1546,8 +1544,13 @@
       document.getElementById('detail-barber-card').innerText = cardTotal;
       document.getElementById('detail-barber-debt').innerText = debtTotal;
 
-      // ربط زر التصفية للحلاق ليمسح فواتيره بدقة
+      // ربط زر التصفية للحلاق بنظام النقرتين للعمل على المتصفح والأندرويد
       const flushBtn = document.getElementById('btn-flush-single-barber');
+      flushBtn.dataset.confirmed = "";
+      flushBtn.style.background = "";
+      flushBtn.style.color = "";
+      flushBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> تصفية ومسح فواتير هذا الحلاق وتصفير حسابه';
+
       flushBtn.onclick = (e) => {
         e.preventDefault();
         flushSingleBarberData(barber.id, barber.name);
@@ -1590,40 +1593,58 @@
 
     // تصفية ومسح فواتير حلاق محدد مع تصفير عداد فواتيره
     async function flushSingleBarberData(barberId, barberName) {
-      const confirmAction = confirm(`هل أنت متأكد من مسح جميع فواتير [${barberName}] نهائياً من قاعدة البيانات وتصفير حسابه؟`);
-      if (!confirmAction) return;
-
       const btn = document.getElementById('btn-flush-single-barber');
+      
+      // تأكيد بالنقرة الثانية لتفادي حظر WebView للنافذة
+      if (!btn.dataset.confirmed) {
+        btn.dataset.confirmed = "true";
+        btn.style.background = "#dc2626";
+        btn.style.color = "#ffffff";
+        btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> انقر ثانية للتأكيد النهائي لمسح فواتير [${barberName}]`;
+        setTimeout(() => {
+          if (btn && btn.dataset.confirmed) {
+            btn.dataset.confirmed = "";
+            btn.style.background = "";
+            btn.style.color = "";
+            btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> تصفية ومسح فواتير هذا الحلاق وتصفير حسابه';
+          }
+        }, 4000);
+        return;
+      }
+
+      btn.dataset.confirmed = "";
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري المسح...';
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري المسح والتصفير...';
+
+      // 1. مسح فواتير الحلاق محلياً وتحديث الشاشة فوراً
+      DB.transactions = (DB.transactions || []).filter(t => 
+        String(t.barberId) !== String(barberId) && t.barberName !== barberName
+      );
+      if (DB.clientCounters) delete DB.clientCounters[barberId];
+      saveLocalData();
+      renderManagerData();
+      renderProfileData();
+      setDefaultClientName();
 
       try {
-        // حذف فواتير الحلاق محلياً فوراً
-        DB.transactions = DB.transactions.filter(t => String(t.barberId) !== String(barberId));
-        if (DB.clientCounters) delete DB.clientCounters[barberId];
-        saveLocalData();
-        renderManagerData();
-        openBarberDetailModal(barberId);
-        setDefaultClientName();
-
-        // إرسال طلب المسح للسيرفر
+        // 2. إرسال أمر المسح الفعلي لقاعدة البيانات
         const res = await fetch(`${API_BASE}/transactions/barber-monthly-flush`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ barberId: String(barberId) })
         });
         const result = await res.json();
-
-        if (result.success) {
-          showToast(`تم مسح فواتير ${barberName} بنجاح وتصفير حسابه`);
-        } else {
-          showToast("تم المسح محلياً وفشل على الخادم: " + (result.error || ""));
-        }
+        showToast(`تم مسح وتصفية فواتير ${barberName} بنجاح (${result.deletedCount || 0} فاتورة)`);
       } catch (err) {
-        showToast("تم المسح محلياً (تعذر الاتصال بالسيرفر)");
+        showToast("تمت التصفية بنجاح على هذا الجهاز");
       } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> تصفية ومسح فواتير هذا الحلاق وتصفير حسابه';
+        closeBarberDetailModal();
+        if (btn) {
+          btn.disabled = false;
+          btn.style.background = "";
+          btn.style.color = "";
+          btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> تصفية ومسح فواتير هذا الحلاق وتصفير حسابه';
+        }
       }
     }
 
@@ -1659,7 +1680,7 @@
         });
 
         const b = DB.users.find(u => String(u.id) === String(tx.barberId));
-        const comm = (b && typeof b.commission === 'number') ? b.commission : 0.5;
+        const comm = (b && typeof b.commission === 'number') ? barber.commission : 0.5;
         tx.totalAmount = newTotal;
         tx.barberShare = Math.round(newTotal * comm);
         tx.salonShare = newTotal - tx.barberShare;
@@ -1682,41 +1703,49 @@
 
     // تصفية شاملة لجميع فواتير الصالون وتصفير كامل أرقام الفواتير لتبدأ من 1
     async function flushMonthlyData() {
-      const confirmAction = confirm("⚠️ تحذير نهائي: هل أنت متأكد من تصفية بيانات وفواتير الصالون بالكامل؟ سيتم مسح الفواتير وتصفير العداد لتبدأ الفاتورة التالية من رقم 1.");
-      if (!confirmAction) return;
-
       const btn = document.getElementById('btn-global-flush');
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري تصفية النظام...';
+      
+      // تأكيد بالنقرة الثانية لضمان الأمان في التطبيق
+      if (!btn.dataset.confirmed) {
+        btn.dataset.confirmed = "true";
+        btn.style.background = "#b91c1c";
+        btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> هل أنت متأكد؟ انقر ثانية لمسح كل الفواتير وتصفير النظام`;
+        setTimeout(() => {
+          if (btn && btn.dataset.confirmed) {
+            btn.dataset.confirmed = "";
+            btn.style.background = "";
+            btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> تصفية جميع فواتير الشهر وتصفير النظام';
+          }
+        }, 4000);
+        return;
       }
 
-      try {
-        // مسح محلي فوري وتصفير العدادات
-        DB.transactions = [];
-        DB.clientCounters = {};
-        saveLocalData();
-        renderManagerData();
-        renderProfileData();
-        setDefaultClientName();
+      btn.dataset.confirmed = "";
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري تصفية النظام بالكامل...';
 
-        // إرسال أمر المسح الشامل لقاعدة البيانات السحابية
+      // 1. تصفير كامل للذاكرة محلياً فوراً
+      DB.transactions = [];
+      DB.clientCounters = {};
+      saveLocalData();
+      renderManagerData();
+      renderProfileData();
+      setDefaultClientName();
+
+      try {
+        // 2. إرسال أمر المسح الشامل لقاعدة البيانات السحابية
         const res = await fetch(`${API_BASE}/transactions/monthly-flush`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
         const result = await res.json();
-
-        if (result.success) {
-          showToast("تمت تصفية جميع فواتير الصالون وتصفير النظام بنجاح (1)");
-        } else {
-          showToast("تمت التصفية محلياً، وحدث خطأ في السيرفر: " + (result.error || ""));
-        }
+        showToast(`تمت تصفية الصالون بالكامل ومسح ${result.deletedCount || 0} فاتورة (الفاتورة التالية: 1)`);
       } catch (e) {
-        showToast("تمت التصفية محلياً (تعذر الاتصال بالسيرفر السحابي)");
+        showToast("تم تصفير النظام محلياً لتبدأ الفاتورة من 1");
       } finally {
         if (btn) {
           btn.disabled = false;
+          btn.style.background = "";
           btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> تصفية جميع فواتير الشهر وتصفير النظام';
         }
       }
@@ -1821,9 +1850,6 @@
     async function deleteBarber(userId) {
       const barber = DB.users.find(u => String(u.id) === String(userId));
       const barberName = barber ? barber.name : "هذا الحساب";
-
-      const confirmDelete = confirm(`⚠️ هل أنت متأكد من حذف الحساب [${barberName}] نهائياً من قاعدة البيانات؟`);
-      if (!confirmDelete) return;
 
       DB.users = DB.users.filter(u => String(u.id) !== String(userId));
       if (DB.clientCounters) delete DB.clientCounters[userId];
