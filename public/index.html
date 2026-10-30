@@ -374,21 +374,36 @@
 
       <!-- TAB 2: حساب الحلاق وسجل العمليات -->
       <section id="view-profile" class="view-section">
-        <div class="stats-row">
+        <!-- الصف الأول: الدخل ونسبة الربح -->
+        <div class="stats-row" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 8px;">
           <div class="stat-box">
-            <span>دخلي اليوم</span>
+            <span>إجمالي دخل اليوم</span>
             <strong id="my-day-earnings">0</strong>
             <span style="font-size: 9px;">ريال صافي</span>
           </div>
           <div class="stat-box">
-            <span>زبائني اليوم</span>
-            <strong id="my-day-clients">0</strong>
-            <span style="font-size: 9px;">زبون</span>
+            <span>إجمالي دخل الشهر</span>
+            <strong id="my-total-earnings">0</strong>
+            <span style="font-size: 9px;">ريال صافي</span>
+          </div>
+          <div class="stat-box" style="background: var(--gold-light); border-color: rgba(176, 139, 75, 0.35);">
+            <span style="color: var(--gold);">نسبة الربح</span>
+            <strong id="my-commission-rate" style="color: var(--gold);">50%</strong>
+            <span style="font-size: 9px; color: var(--muted);">معتمدة من المدير</span>
+          </div>
+        </div>
+
+        <!-- الصف الثاني: عدد الزبائن اليومي والشهري -->
+        <div class="stats-row" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="stat-box">
+            <span>عدد الزبائن اليومي</span>
+            <strong id="my-day-clients" style="color: var(--success);">0</strong>
+            <span style="font-size: 9px;">زبون اليوم</span>
           </div>
           <div class="stat-box">
-            <span>مجمل دخلي</span>
-            <strong id="my-total-earnings">0</strong>
-            <span style="font-size: 9px;">ريال</span>
+            <span>عدد الزبائن الشهري</span>
+            <strong id="my-month-clients" style="color: var(--primary);">0</strong>
+            <span style="font-size: 9px;">زبون هذا الشهر</span>
           </div>
         </div>
 
@@ -876,11 +891,15 @@
 
     function updateTopBarInfo() {
       if (!currentUser) return;
+      const latestUser = DB.users.find(u => String(u.id) === String(currentUser.id)) || currentUser;
+      currentUser = latestUser;
+      const commPercent = Math.round((typeof currentUser.commission === 'number' ? currentUser.commission : 0.5) * 100);
+
       document.getElementById('header-user-name').innerText = currentUser.name.split(' ')[0];
       document.getElementById('header-avatar').src = currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
       document.getElementById('drawer-avatar').src = currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
       document.getElementById('drawer-user-name').innerText = currentUser.name;
-      document.getElementById('drawer-user-role').innerText = currentUser.role === 'manager' ? 'مدير الصالون' : `حلاق (${Math.round((currentUser.commission || 0.5) * 100)}%)`;
+      document.getElementById('drawer-user-role').innerText = currentUser.role === 'manager' ? 'مدير الصالون' : `حلاق (${commPercent}%)`;
       document.getElementById('profile-avatar-preview').src = currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
       document.getElementById('settings-username').value = currentUser.username;
       document.getElementById('settings-password').value = '';
@@ -1118,7 +1137,8 @@
         };
       });
 
-      const comm = (typeof currentUser.commission === 'number') ? currentUser.commission : 0.5;
+      const latestUser = DB.users.find(u => String(u.id) === String(currentUser.id)) || currentUser;
+      const comm = (typeof latestUser.commission === 'number') ? latestUser.commission : 0.5;
       const barberShare = Math.round(total * comm);
       const isDebt = selectedPayment === 'دين';
 
@@ -1211,19 +1231,31 @@
     }
 
     function renderProfileData() {
+      if (!currentUser) return;
+
+      // جلب أحدث بيانات المستخدم من مصفوفة المدير لضمان قراءة النسبة المحدثة
+      const syncedUser = DB.users.find(u => String(u.id) === String(currentUser.id)) || currentUser;
+      currentUser = syncedUser;
+      const commPercent = Math.round((typeof currentUser.commission === 'number' ? currentUser.commission : 0.5) * 100);
+
       const myTx = DB.transactions.filter(t => String(t.barberId) === String(currentUser.id));
       const today = new Date().toISOString().slice(0, 10);
+      const currentMonth = today.slice(0, 7);
+
       const myToday = myTx.filter(t => t.date === today);
+      const myMonth = myTx.filter(t => t.date && t.date.startsWith(currentMonth));
 
       let dayEarnings = 0;
-      let totalEarnings = 0;
+      let monthEarnings = 0;
 
       myToday.forEach(t => { if (!t.isDebt && t.debtStatus !== 'rejected') dayEarnings += (t.barberShare || 0); });
-      myTx.forEach(t => { if (!t.isDebt && t.debtStatus !== 'rejected') totalEarnings += (t.barberShare || 0); });
+      myMonth.forEach(t => { if (!t.isDebt && t.debtStatus !== 'rejected') monthEarnings += (t.barberShare || 0); });
 
       document.getElementById('my-day-earnings').innerText = dayEarnings;
+      document.getElementById('my-total-earnings').innerText = monthEarnings;
+      document.getElementById('my-commission-rate').innerText = `${commPercent}%`;
       document.getElementById('my-day-clients').innerText = myToday.length;
-      document.getElementById('my-total-earnings').innerText = totalEarnings;
+      document.getElementById('my-month-clients').innerText = myMonth.length;
 
       let list = (currentOpFilter === 'today') ? myToday : myTx;
       const container = document.getElementById('barber-tx-history');
@@ -1680,7 +1712,7 @@
         });
 
         const b = DB.users.find(u => String(u.id) === String(tx.barberId));
-        const comm = (b && typeof b.commission === 'number') ? barber.commission : 0.5;
+        const comm = (b && typeof b.commission === 'number') ? b.commission : 0.5;
         tx.totalAmount = newTotal;
         tx.barberShare = Math.round(newTotal * comm);
         tx.salonShare = newTotal - tx.barberShare;
@@ -1841,9 +1873,15 @@
         }
       }
 
+      if (currentUser && String(currentUser.id) === String(bId)) {
+        currentUser.commission = finalCommissionRatio;
+        updateTopBarInfo();
+      }
+
       saveLocalData();
       closeBarberModal();
       renderManagerData();
+      renderProfileData();
       showToast(`تم حفظ الحساب بنجاح`);
     }
 
