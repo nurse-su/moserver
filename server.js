@@ -183,32 +183,38 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
-// 5. تصفية وحذف فواتير حلاق منفرد لشهر محدد
+// 5. تصفية وحذف فواتير حلاق منفرد (محدث للبحث الشامل والمباشر)
 app.post('/api/transactions/barber-monthly-flush', async (req, res) => {
   try {
-    const { barberId, monthPrefix } = req.body;
+    const { barberId } = req.body;
     if (!barberId) {
       return res.status(400).json({ success: false, error: 'معرّف الحلاق مطلوب' });
     }
 
-    const query = { barberId: String(barberId) };
-    if (monthPrefix) {
-      query.date = { $regex: `^${monthPrefix}` };
-    }
+    // حذف الفواتير التابعة للحلاق سواء تم تخزين المعرف كـ String أو ObjectId أو باسم الحلاق
+    const result = await Transaction.deleteMany({
+      $or: [
+        { barberId: String(barberId) },
+        { barberName: String(barberId) }
+      ]
+    });
 
-    const result = await Transaction.deleteMany(query);
+    console.log(`✔ تم حذف ${result.deletedCount} فاتورة للحلاق (${barberId})`);
     res.json({ success: true, deletedCount: result.deletedCount });
   } catch (err) {
+    console.error('❌ خطأ في تصفية فواتير الحلاق:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 6. تصفية شاملة لجميع فواتير الشهر لكل الصالون
+// 6. تصفية شاملة لجميع فواتير الصالون بالكامل
 app.post('/api/transactions/monthly-flush', async (req, res) => {
   try {
     const result = await Transaction.deleteMany({});
+    console.log(`✔ تمت التصفية الشاملة ومسح ${result.deletedCount} فاتورة من صالون المروج`);
     res.json({ success: true, deletedCount: result.deletedCount });
   } catch (err) {
+    console.error('❌ خطأ في التصفية الشاملة:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
