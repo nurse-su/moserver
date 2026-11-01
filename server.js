@@ -1,3 +1,5 @@
+'use strict';
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -5,40 +7,33 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-
-// تقديم ملفات الواجهة من مجلد public
+app.disable('x-powered-by');
+app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
+app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// رابط MongoDB Atlas
-const DEFAULT_MONGO_URI = 'mongodb+srv://sbmsd2020_db_user:WLverdVttU6qoXdK@cluster0.v1vhvuf.mongodb.net/barbershop_db?retryWrites=true&w=majority';
-const MONGO_URI = process.env.MONGO_URI || DEFAULT_MONGO_URI;
+const PORT = Number(process.env.PORT || 5000);
+const MONGO_URI = process.env.MONGO_URI;
 
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('✔ تم الاتصال بنجاح بمونجو دي بي صالون المروج (barbershop_db)'))
-  .catch(err => console.error('❌ خطأ في الاتصال بمونجو دي بي:', err.message));
-
-// ======================= المخططات (Schemas) ======================= //
+mongoose.set('strictQuery', true);
 
 const UserSchema = new mongoose.Schema({
-  name: { type: String, required: true },
+  name: { type: String, required: true, trim: true },
   username: { type: String, unique: true, required: true, lowercase: true, trim: true },
-  password: { type: String, required: true },
+  // ملاحظة: ترحيل كلمات المرور إلى bcrypt مطلوب قبل تشغيل النظام على الإنترنت.
+  password: { type: String, required: true, select: true },
   role: { type: String, default: 'barber', enum: ['barber', 'manager'] },
-  commission: { type: Number, default: 0.5 },
+  commission: { type: Number, default: 0.5, min: 0, max: 1 },
   avatar: String,
-  attendance: { 
-    status: { type: String, default: 'absent' }, 
-    checkIn: { type: String, default: null }, 
-    checkOut: { type: String, default: null } 
+  attendance: {
+    status: { type: String, default: 'absent' },
+    checkIn: { type: String, default: null },
+    checkOut: { type: String, default: null }
   }
 }, { timestamps: true });
 
-const User = mongoose.model('User', UserSchema);
-
 const TransactionSchema = new mongoose.Schema({
-  txId: { type: String, unique: true, required: true, index: true },
+  txId: { type: String, unique: true, required: true, index: true, trim: true },
   barberId: { type: String, required: true, index: true },
   barberName: String,
   clientName: String,
@@ -47,329 +42,225 @@ const TransactionSchema = new mongoose.Schema({
   debtStatus: { type: String, default: 'approved' },
   date: { type: String, index: true },
   time: String,
-  items: { type: Array, default: [] },
+  items: { type: [mongoose.Schema.Types.Mixed], default: [] },
   totalAmount: { type: Number, default: 0 },
   barberShare: { type: Number, default: 0 },
   salonShare: { type: Number, default: 0 },
   hasPendingAdjustments: { type: Boolean, default: false }
-}, { timestamps: true });
+}, { timestamps: true, strict: true });
 
+const User = mongoose.model('User', UserSchema);
 const Transaction = mongoose.model('Transaction', TransactionSchema);
 
-// ======================= حقن المدير الافتراضي تلقائياً عند أول اتصال ======================= //
-mongoose.connection.once('open', async () => {
-  try {
-    const userCount = await User.countDocuments();
-    if (userCount === 0) {
-      console.log('⚡ قاعدة البيانات فارغة: جارٍ إنشاء حساب المدير الافتراضي والحلاقين...');
-      await User.insertMany([
-        {
-          name: 'أبو فهد (المدير)',
-          username: 'admin',
-          password: '1234',
-          role: 'manager',
-          commission: 1.0,
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'
-        },
-        {
-          name: 'محمد الحلاق',
-          username: 'mohamed',
-          password: '1234',
-          role: 'barber',
-          commission: 0.50,
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-          attendance: { status: 'present', checkIn: '09:00 ص', checkOut: null }
-        },
-        {
-          name: 'أحمد التونسي',
-          username: 'ahmed',
-          password: '1234',
-          role: 'barber',
-          commission: 0.50,
-          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-          attendance: { status: 'absent', checkIn: null, checkOut: null }
-        }
-      ]);
-      console.log('✔ تم إنشاء حساب المدير (admin / 1234) بنجاح على MongoDB Atlas.');
-    }
-  } catch (err) {
-    console.error('❌ تعذر إنشاء الحسابات الافتراضية:', err.message);
-  }
+function managerOnly(req, res, next) {
+  // لا توجد مصادقة جلسات/رموز في نسخة الواجهة الحالية؛ لذلك نغلق العمليات الحساسة بدلاً من الثقة بدور يرسله المتصفح.
+  return res.status(403).json({
+    success: false,
+    error: 'هذه العملية الحساسة معطلة حتى إضافة مصادقة مدير آمنة من جهة الخادم.'
+  });
+}
+
+app.get('/api/health', (req, res) => {
+  res.json({ success: true, database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
 });
 
-// ======================= واجهات برمجة التطبيقات (API) ======================= //
-
-// 0. مسار تسجيل الدخول المباشر من قاعدة البيانات
 app.post('/api/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ success: false, message: 'اسم المستخدم وكلمة المرور مطلوبان' });
-    }
-
-    const cleanUsername = username.trim().toLowerCase();
-    const cleanPassword = String(password).trim();
-
-    const user = await User.findOne({ username: cleanUsername }).lean();
-
-    if (!user || String(user.password).trim() !== cleanPassword) {
+    const username = String(req.body.username || '').trim().toLowerCase();
+    const password = String(req.body.password || '').trim();
+    if (!username || !password) return res.status(400).json({ success: false, message: 'اسم المستخدم وكلمة المرور مطلوبان' });
+    const user = await User.findOne({ username }).lean();
+    if (!user || String(user.password).trim() !== password) {
       return res.status(401).json({ success: false, message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
     }
-
+    // لا نعيد كلمة المرور إلى المتصفح.
+    delete user.password;
     res.json({ success: true, user });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error('login:', err);
+    res.status(500).json({ success: false, message: 'تعذر تسجيل الدخول' });
   }
 });
 
-// 1. جلب البيانات الأولية
 app.get('/api/initial-data', async (req, res) => {
   try {
-    const users = await User.find().lean();
-    const transactions = await Transaction.find().sort({ createdAt: -1 }).limit(100).lean();
-    res.json({ success: true, users, transactions });
+    if (mongoose.connection.readyState !== 1) return res.status(503).json({ success: false, error: 'قاعدة البيانات غير متصلة' });
+    const [users, transactions] = await Promise.all([
+      User.find().select('-password').lean(),
+      // لا يوجد limit(100): جلب كل السجلات حتى لا تختفي الفواتير القديمة من التقارير.
+      Transaction.find().sort({ createdAt: -1 }).lean()
+    ]);
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, users, transactions, transactionCount: transactions.length });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error('initial-data:', err);
+    res.status(500).json({ success: false, error: 'فشل تحميل بيانات قاعدة البيانات' });
   }
 });
 
-// 2. تسجيل الفاتورة مع منع التكرار الذري
 app.post('/api/transactions', async (req, res) => {
   try {
-    const { txId } = req.body;
-    if (!txId) {
-      return res.status(400).json({ success: false, error: 'معرّف الفاتورة txId مطلوب' });
-    }
+    const body = req.body || {};
+    const txId = String(body.txId || '').trim();
+    const barberId = String(body.barberId || '').trim();
+    if (!txId || !barberId) return res.status(400).json({ success: false, error: 'txId و barberId مطلوبان' });
+    if (!Array.isArray(body.items) || body.items.length === 0) return res.status(400).json({ success: false, error: 'يجب أن تحتوي الفاتورة على خدمة واحدة على الأقل' });
+    const totalAmount = Number(body.totalAmount);
+    if (!Number.isFinite(totalAmount) || totalAmount < 0) return res.status(400).json({ success: false, error: 'قيمة الفاتورة غير صحيحة' });
 
-    const tx = await Transaction.findOneAndUpdate(
-      { txId: txId },
-      { $setOnInsert: req.body },
-      { upsert: true, new: true }
-    );
-
-    res.json({ success: true, transaction: tx });
+    const safe = {
+      txId, barberId,
+      barberName: String(body.barberName || ''),
+      clientName: String(body.clientName || ''),
+      paymentMethod: String(body.paymentMethod || 'كاش (نقداً)'),
+      isDebt: Boolean(body.isDebt),
+      debtStatus: String(body.debtStatus || 'approved'),
+      date: String(body.date || new Date().toISOString().slice(0, 10)),
+      time: String(body.time || ''),
+      items: body.items,
+      totalAmount,
+      barberShare: Number(body.barberShare || 0),
+      salonShare: Number(body.salonShare || 0),
+      hasPendingAdjustments: Boolean(body.hasPendingAdjustments)
+    };
+    const transaction = await Transaction.findOneAndUpdate(
+      { txId },
+      { $setOnInsert: safe },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+    ).lean();
+    res.status(200).json({ success: true, transaction });
   } catch (err) {
+    console.error('save transaction:', err);
     if (err.code === 11000) {
-      const existingTx = await Transaction.findOne({ txId: req.body.txId });
-      return res.json({ success: true, transaction: existingTx, duplicateIgnored: true });
+      const existing = await Transaction.findOne({ txId: req.body.txId }).lean();
+      if (existing) return res.json({ success: true, transaction: existing, duplicateIgnored: true });
     }
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'لم يتم حفظ الفاتورة في قاعدة البيانات' });
   }
 });
 
-// 3. حذف فاتورة محددة نهائياً (خاص بالمدير)
-app.delete('/api/transactions/:txId', async (req, res) => {
-  try {
-    const { txId } = req.params;
-    const deleted = await Transaction.findOneAndDelete({ txId });
-    if (!deleted) {
-      return res.status(404).json({ success: false, error: 'الفاتورة غير موجودة' });
-    }
-    res.json({ success: true, message: 'تم مسح الفاتورة بنجاح' });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+// الحذف النهائي والتصفير مغلقان عمداً. لا نسمح لأي طلب متصفح بمسح السجلات.
+app.delete('/api/transactions/:txId', managerOnly);
+app.delete('/api/users/:id', managerOnly);
+app.post('/api/transactions/barber-monthly-flush', managerOnly);
+app.post('/api/transactions/monthly-flush', managerOnly);
 
-// 4. حذف مستخدم/حلاق نهائياً
-app.delete('/api/users/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await User.findByIdAndDelete(id);
-    res.json({ success: true, message: 'تم حذف الحساب بنجاح' });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 5. تصفية وحذف فواتير حلاق منفرد بشكل كامل
-app.post('/api/transactions/barber-monthly-flush', async (req, res) => {
-  try {
-    const { barberId } = req.body;
-    if (!barberId) {
-      return res.status(400).json({ success: false, error: 'معرّف الحلاق مطلوب' });
-    }
-
-    // مسح فواتير الحلاق سواء طابقت الـ ID أو اسم الحلاق
-    const result = await Transaction.deleteMany({
-      $or: [
-        { barberId: String(barberId) },
-        { barberName: String(barberId) }
-      ]
-    });
-
-    console.log(`✔ تم حذف ${result.deletedCount} فاتورة للحلاق (${barberId}) بنجاح`);
-    res.json({ success: true, deletedCount: result.deletedCount });
-  } catch (err) {
-    console.error('❌ خطأ في مسح فواتير الحلاق:', err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 6. تصفية شاملة لجميع فواتير الصالون بالكامل
-app.post('/api/transactions/monthly-flush', async (req, res) => {
-  try {
-    const result = await Transaction.deleteMany({});
-    console.log(`✔ تم مسح جميع فواتير الصالون بالكامل (${result.deletedCount} فاتورة)`);
-    res.json({ success: true, deletedCount: result.deletedCount });
-  } catch (err) {
-    console.error('❌ خطأ في التصفية الشاملة للصالون:', err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 7. اعتماد وتعديل سعر خدمة مع إعادة احتساب الإجمالي بدقة
 app.post('/api/transactions/decide-adjustment', async (req, res) => {
   try {
     const { txId, itemIndex, approve, directPrice } = req.body;
     const tx = await Transaction.findOne({ txId });
-    if (!tx || !tx.items || !tx.items[itemIndex]) {
-      return res.status(404).json({ success: false, error: 'الفاتورة أو الخدمة غير موجودة' });
-    }
-
+    if (!tx || !tx.items || !tx.items[itemIndex]) return res.status(404).json({ success: false, error: 'الفاتورة أو الخدمة غير موجودة' });
     if (directPrice !== undefined) {
-      tx.items[itemIndex].finalPrice = Number(directPrice);
+      const price = Number(directPrice);
+      if (!Number.isFinite(price) || price < 0) return res.status(400).json({ success: false, error: 'السعر غير صحيح' });
+      tx.items[itemIndex].finalPrice = price;
       tx.items[itemIndex].adjustmentStatus = 'approved';
     } else if (approve) {
-      tx.items[itemIndex].finalPrice = Number(tx.items[itemIndex].requestedPrice);
+      tx.items[itemIndex].finalPrice = Number(tx.items[itemIndex].requestedPrice || 0);
       tx.items[itemIndex].adjustmentStatus = 'approved';
-    } else {
-      tx.items[itemIndex].adjustmentStatus = 'rejected';
-    }
-
-    let newTotal = 0;
-    let hasPending = false;
-    tx.items.forEach(it => {
-      newTotal += Number(it.finalPrice || 0);
-      if (it.adjustmentStatus === 'pending') hasPending = true;
-    });
-
+    } else tx.items[itemIndex].adjustmentStatus = 'rejected';
+    let total = 0, pending = false;
+    tx.items.forEach(item => { total += Number(item.finalPrice || 0); if (item.adjustmentStatus === 'pending') pending = true; });
     const barber = await User.findById(tx.barberId);
-    const comm = (barber && typeof barber.commission === 'number') ? barber.commission : 0.5;
-
-    tx.totalAmount = newTotal;
-    tx.barberShare = Math.round(newTotal * comm);
-    tx.salonShare = newTotal - tx.barberShare;
-    tx.hasPendingAdjustments = hasPending;
-
+    const commission = Number.isFinite(barber?.commission) ? barber.commission : 0.5;
+    tx.totalAmount = total;
+    tx.barberShare = Math.round(total * commission);
+    tx.salonShare = total - tx.barberShare;
+    tx.hasPendingAdjustments = pending;
     tx.markModified('items');
     await tx.save();
-
     res.json({ success: true, transaction: tx });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  } catch (err) { console.error(err); res.status(500).json({ success: false, error: 'تعذر اعتماد تعديل السعر' }); }
 });
 
-// 8. طلب الحلاق لتعديل السعر
 app.post('/api/transactions/request-adjustment', async (req, res) => {
   try {
     const { txId, itemIndex, requestedPrice, reason } = req.body;
+    const price = Number(requestedPrice);
+    if (!Number.isFinite(price) || price < 0) return res.status(400).json({ success: false, error: 'السعر المطلوب غير صحيح' });
     const tx = await Transaction.findOne({ txId });
-    if (!tx || !tx.items || !tx.items[itemIndex]) {
-      return res.status(404).json({ success: false, error: 'الفاتورة أو الخدمة غير موجودة' });
-    }
-
+    if (!tx || !tx.items || !tx.items[itemIndex]) return res.status(404).json({ success: false, error: 'الفاتورة أو الخدمة غير موجودة' });
     tx.items[itemIndex].adjustmentStatus = 'pending';
-    tx.items[itemIndex].requestedPrice = Number(requestedPrice);
-    tx.items[itemIndex].adjustmentReason = reason;
+    tx.items[itemIndex].requestedPrice = price;
+    tx.items[itemIndex].adjustmentReason = String(reason || '');
     tx.hasPendingAdjustments = true;
-
     tx.markModified('items');
     await tx.save();
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+    res.json({ success: true, transaction: tx });
+  } catch (err) { console.error(err); res.status(500).json({ success: false, error: 'تعذر إرسال طلب تعديل السعر' }); }
 });
 
-// 9. قرار المدير بشأن الدين
 app.post('/api/transactions/decide-debt', async (req, res) => {
   try {
     const { txId, approve } = req.body;
-    await Transaction.findOneAndUpdate(
-      { txId }, 
-      { debtStatus: approve ? 'approved' : 'rejected' }
-    );
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+    const updated = await Transaction.findOneAndUpdate({ txId }, { debtStatus: approve ? 'approved' : 'rejected' }, { new: true });
+    if (!updated) return res.status(404).json({ success: false, error: 'الفاتورة غير موجودة' });
+    res.json({ success: true, transaction: updated });
+  } catch (err) { res.status(500).json({ success: false, error: 'تعذر تحديث حالة الدين' }); }
 });
 
-// 10. تسجيل الحضور والانصراف
 app.post('/api/attendance', async (req, res) => {
   try {
     const { userId, status, time } = req.body;
-    const update = (status === 'present')
-      ? { 'attendance.status': 'present', 'attendance.checkIn': time }
+    if (!mongoose.Types.ObjectId.isValid(userId)) return res.status(400).json({ success: false, error: 'معرف المستخدم غير صحيح' });
+    const update = status === 'present'
+      ? { 'attendance.status': 'present', 'attendance.checkIn': time, 'attendance.checkOut': null }
       : { 'attendance.status': 'absent', 'attendance.checkOut': time };
-
-    await User.findByIdAndUpdate(userId, update);
+    const user = await User.findByIdAndUpdate(userId, update, { new: true });
+    if (!user) return res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  } catch (err) { res.status(500).json({ success: false, error: 'تعذر تسجيل الحضور' }); }
 });
 
-// 11. حفظ وتعديل بيانات الحلاق
 app.post('/api/users/save', async (req, res) => {
   try {
     const { id, name, username, password, commission, role } = req.body;
-    const parsedCommission = (commission !== undefined && !isNaN(commission)) ? Number(commission) : 0.5;
-
-    let savedUser;
+    if (!name || !username) return res.status(400).json({ success: false, error: 'الاسم واسم المستخدم مطلوبان' });
+    const cleanUsername = String(username).trim().toLowerCase();
+    const data = { name: String(name).trim(), username: cleanUsername, commission: Number.isFinite(Number(commission)) ? Number(commission) : 0.5, role: role === 'manager' ? 'manager' : 'barber' };
+    if (password) data.password = String(password);
+    let user;
     if (id && mongoose.Types.ObjectId.isValid(id)) {
-      savedUser = await User.findByIdAndUpdate(id, { 
-        name, 
-        username: username.toLowerCase().trim(), 
-        password, 
-        commission: parsedCommission, 
-        role 
-      }, { new: true });
+      user = await User.findByIdAndUpdate(id, data, { new: true, runValidators: true }).select('-password');
+      if (!user) return res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
     } else {
-      savedUser = await User.create({
-        name,
-        username: username.toLowerCase().trim(),
-        password,
-        commission: parsedCommission,
-        role,
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-        attendance: role === 'barber' ? { status: 'absent', checkIn: null, checkOut: null } : null
-      });
+      if (!password) return res.status(400).json({ success: false, error: 'كلمة المرور مطلوبة للحساب الجديد' });
+      user = await User.create({ ...data, avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', attendance: data.role === 'barber' ? { status: 'absent', checkIn: null, checkOut: null } : undefined });
+      user = user.toObject(); delete user.password;
     }
-    res.json({ success: true, user: savedUser });
+    res.json({ success: true, user });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    if (err.code === 11000) return res.status(409).json({ success: false, error: 'اسم المستخدم مستخدم بالفعل' });
+    console.error(err); res.status(500).json({ success: false, error: 'تعذر حفظ بيانات المستخدم' });
   }
 });
 
-// 12. تعديل البروفايل والصورة الشخصية
 app.post('/api/users/profile', async (req, res) => {
   try {
     const { userId, username, password, avatar } = req.body;
-    const upd = {};
-    if (username) upd.username = username.toLowerCase().trim();
-    if (password) upd.password = password;
-    if (avatar) upd.avatar = avatar;
-
-    await User.findByIdAndUpdate(userId, upd);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+    if (!mongoose.Types.ObjectId.isValid(userId)) return res.status(400).json({ success: false, error: 'معرف المستخدم غير صحيح' });
+    const update = {};
+    if (username) update.username = String(username).trim().toLowerCase();
+    if (password) update.password = String(password);
+    if (avatar) update.avatar = String(avatar);
+    const user = await User.findByIdAndUpdate(userId, update, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
+    res.json({ success: true, user });
+  } catch (err) { res.status(500).json({ success: false, error: 'تعذر تحديث الملف الشخصي' }); }
 });
 
-// توجيه كل المسارات الأخرى إلى صفحة الواجهة متوافق مع Express 5
-app.get('/*splat', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.use('/api', (req, res) => res.status(404).json({ success: false, error: 'مسار API غير موجود' }));
+app.get('/*splat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// إعداد المنفذ والاستماع المتوافق مع Render (0.0.0.0)
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`====================================================`);
-  console.log(`🚀 سيرفر صالون المروج يعمل بنجاح على المنفذ: ${PORT}`);
-  console.log(`====================================================`);
+async function start() {
+  if (!MONGO_URI) throw new Error('MONGO_URI غير موجود في ملف البيئة .env');
+  await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 15000 });
+  console.log('✔ تم الاتصال بقاعدة MongoDB');
+  await Promise.all([User.init(), Transaction.init()]);
+  app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Barber salon server listening on ${PORT}`));
+}
+
+start().catch(err => {
+  console.error('❌ لم يبدأ السيرفر لأن الاتصال بقاعدة البيانات فشل:', err.message);
+  process.exit(1);
 });
