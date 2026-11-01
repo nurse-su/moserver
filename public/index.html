@@ -792,7 +792,18 @@
         const data = await res.json();
         if (data.success && !isMutating) {
           if (data.users?.length) DB.users = data.users.map(u => ({ ...u, id: u._id || u.id }));
-          if (Array.isArray(data.transactions)) DB.transactions = data.transactions.map(t => ({ ...t, id: t.txId || t._id || t.id }));
+          if (Array.isArray(data.transactions)) {
+            const serverTx = data.transactions.map(t => ({ ...t, id: t.txId || t._id || t.id }));
+            // لا تسمح لمزامنة فارغة بمحو فواتير الجهاز بسبب خطأ/قاعدة بيانات خاطئة.
+            if (serverTx.length > 0 || (DB.transactions || []).length === 0) {
+              const pendingLocal = (DB.transactions || []).filter(t => t._syncPending);
+              const serverIds = new Set(serverTx.map(t => String(t.txId || t.id)));
+              DB.transactions = [...pendingLocal.filter(t => !serverIds.has(String(t.txId || t.id))), ...serverTx];
+            } else {
+              console.error('حماية البيانات: السيرفر أعاد صفر فواتير بينما توجد فواتير محلية؛ تم إلغاء الاستبدال.');
+              showToast('تحذير: قاعدة البيانات أعادت قائمة فارغة. احتفظنا بفواتير هذا الجهاز ولم نمسحها.');
+            }
+          }
           saveLocalData();
 
           if (currentUser) {
@@ -1201,7 +1212,8 @@
         hasPendingAdjustments: false,
         items: items,
         date: new Date().toISOString().slice(0, 10),
-        time: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
+        _syncPending: true
       };
 
       DB.transactions.unshift(tx);
@@ -1214,17 +1226,30 @@
       renderProfileData();
       if (currentUser.role === 'manager') renderManagerData();
 
+      let savedOnServer = false;
       try {
-        await fetch(`${API_BASE}/transactions`, {
+        const response = await fetch(`${API_BASE}/transactions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(tx)
         });
-      } catch (e) {} finally {
+        const result = await response.json();
+        if (!response.ok || !result.success || !result.transaction) {
+          throw new Error(result.error || result.message || `HTTP ${response.status}`);
+        }
+        savedOnServer = true;
+        tx._syncPending = false;
+        const saved = result.transaction;
+        Object.assign(tx, saved, { id: saved.txId || saved._id || saved.id, _syncPending: false });
+        saveLocalData();
+      } catch (e) {
+        console.error('فشل حفظ الفاتورة على السيرفر:', e);
+        showToast(`حُفظت الفاتورة على هذا الجهاز فقط ولم يتأكد حفظها سحابياً. لا تغلق/تمسح بيانات المتصفح. السبب: ${e.message}`);
+      } finally {
         isMutating = false;
       }
 
-      showToast(isDebt ? "سُجلت كـ (دين معزول) بانتظار اعتماد المدير" : `تم تسجيل فاتورة (${custName}) بنجاح`);
+      if (savedOnServer) showToast(isDebt ? "سُجلت كـ (دين معزول) بانتظار اعتماد المدير" : `تم حفظ فاتورة (${custName}) على قاعدة البيانات بنجاح`);
     }
 
     async function recordAttendance(type) {
@@ -1711,58 +1736,8 @@
 
     // تصفية ومسح فواتير حلاق محدد مع تصفير عداد فواتيره
     async function flushSingleBarberData(barberId, barberName) {
-      const btn = document.getElementById('btn-flush-single-barber');
-      
-      if (!btn.dataset.confirmed) {
-        btn.dataset.confirmed = "true";
-        btn.style.background = "#dc2626";
-        btn.style.color = "#ffffff";
-        btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> انقر ثانية للتأكيد النهائي لمسح فواتير [${barberName}]`;
-        setTimeout(() => {
-          if (btn && btn.dataset.confirmed) {
-            btn.dataset.confirmed = "";
-            btn.style.background = "";
-            btn.style.color = "";
-            btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> تصفية ومسح فواتير هذا الحلاق وتصفير حسابه';
-          }
-        }, 4000);
-        return;
-      }
-
-      isMutating = true;
-      btn.dataset.confirmed = "";
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري المسح والتصفير...';
-
-      DB.transactions = (DB.transactions || []).filter(t => 
-        String(t.barberId) !== String(barberId) && t.barberName !== barberName
-      );
-      if (DB.clientCounters) delete DB.clientCounters[barberId];
-      saveLocalData();
-      renderManagerData();
-      renderProfileData();
-      setDefaultClientName();
-
-      try {
-        const res = await fetch(`${API_BASE}/transactions/barber-monthly-flush`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ barberId: String(barberId), barberName: String(barberName) })
-        });
-        const result = await res.json();
-        showToast(`تم مسح وتصفية فواتير ${barberName} بنجاح (${result.deletedCount || 0} فاتورة)`);
-      } catch (err) {
-        showToast("تمت التصفية بنجاح على هذا الجهاز");
-      } finally {
-        isMutating = false;
-        closeBarberDetailModal();
-        if (btn) {
-          btn.disabled = false;
-          btn.style.background = "";
-          btn.style.color = "";
-          btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> تصفية ومسح فواتير هذا الحلاق وتصفير حسابه';
-        }
-      }
+      showToast("تم تعطيل حذف فواتير الحلاق نهائياً لحماية السجلات. استخدم تصدير/أرشفة آمنة بعد أخذ نسخة احتياطية.");
+      return;
     }
 
     async function decideDebt(txId, approve) {
@@ -1828,51 +1803,8 @@
 
     // تصفية شاملة لجميع فواتير الصالون وتصفير كامل أرقام الفواتير لتبدأ من 1
     async function flushMonthlyData() {
-      const btn = document.getElementById('btn-global-flush');
-      
-      if (!btn.dataset.confirmed) {
-        btn.dataset.confirmed = "true";
-        btn.style.background = "#b91c1c";
-        btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> هل أنت متأكد؟ انقر ثانية لمسح كل الفواتير وتصفير النظام`;
-        setTimeout(() => {
-          if (btn && btn.dataset.confirmed) {
-            btn.dataset.confirmed = "";
-            btn.style.background = "";
-            btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> تصفية جميع فواتير الشهر وتصفير النظام';
-          }
-        }, 4000);
-        return;
-      }
-
-      isMutating = true;
-      btn.dataset.confirmed = "";
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري تصفية النظام بالكامل...';
-
-      DB.transactions = [];
-      DB.clientCounters = {};
-      saveLocalData();
-      renderManagerData();
-      renderProfileData();
-      setDefaultClientName();
-
-      try {
-        const res = await fetch(`${API_BASE}/transactions/monthly-flush`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const result = await res.json();
-        showToast(`تمت تصفية الصالون بالكامل ومسح ${result.deletedCount || 0} فاتورة (الفاتورة التالية: 1)`);
-      } catch (e) {
-        showToast("تم تصفير النظام محلياً لتبدأ الفاتورة من 1");
-      } finally {
-        isMutating = false;
-        if (btn) {
-          btn.disabled = false;
-          btn.style.background = "";
-          btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> تصفية جميع فواتير الشهر وتصفير النظام';
-        }
-      }
+      showToast("تم تعطيل تصفير النظام وحذف جميع الفواتير نهائياً لحماية بيانات الصالون.");
+      return;
     }
 
     function openBarberModal(userId = null) {
